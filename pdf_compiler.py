@@ -43,14 +43,17 @@ class PDFCompiler:
             c = canvas.Canvas(str(output_path), pagesize=letter)
             width, height = letter
 
-            # Draw healed geometry image
-            if state.healed_geometry is not None:
+            # Draw healed geometry image (fallback to original if healed is None)
+            image_to_draw = state.healed_geometry if state.healed_geometry is not None else state.original_image
+            if image_to_draw is not None:
                 geometry_img_path = OUTPUTS_DIR / f"{output_name}_geometry_temp.png"
-                cv2.imwrite(str(geometry_img_path), state.healed_geometry)
+                cv2.imwrite(str(geometry_img_path), image_to_draw)
 
                 # Scale image to fit page
                 c.drawString(50, height - 50, f"DraftClear - Processed Drawing ({output_name})")
                 c.drawImage(str(geometry_img_path), 50, height - 500, width=500, height=400)
+            else:
+                c.drawString(50, height - 50, "DraftClear - No geometry available to display")
 
             # Add repositioned text labels
             if state.new_coordinates:
@@ -98,23 +101,28 @@ class PDFCompiler:
         OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
 
         try:
-            # Load images
+            # Load images (fallback to original if healed is None)
             original = state.original_image
-            healed = state.healed_geometry
+            healed = state.healed_geometry if state.healed_geometry is not None else state.original_image
 
-            if original is None or healed is None:
-                logger.warning("Missing images for comparison")
+            if original is None:
+                logger.warning("Missing original image for comparison")
                 return None
 
             # Create side-by-side image
             h, w = original.shape[:2]
             comparison = np.zeros((h, w * 2 + 20, 3), dtype=np.uint8)
             comparison[:, :w] = original
-            comparison[:, w+20:] = healed
+            if healed is not None:
+                comparison[:, w+20:] = healed
+            else:
+                # Fill right side with gray if healed is still None
+                comparison[:, w+20:] = np.full((h, w, 3), 128)
 
             # Add labels
             cv2.putText(comparison, "ORIGINAL", (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 255, 0), 2)
-            cv2.putText(comparison, "HEALED", (w + 40, 40), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 255, 0), 2)
+            healed_label = "HEALED" if state.healed_geometry is not None else "ORIGINAL (No changes)"
+            cv2.putText(comparison, healed_label, (w + 40, 40), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 255, 0), 2)
 
             # Save
             output_path = OUTPUTS_DIR / f"{output_name}_comparison.png"

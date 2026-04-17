@@ -64,18 +64,26 @@ class HealingAgent:
         Returns:
             Updated DrawingState with healed geometry
         """
-        if state.damaged_geometry is None or state.mask_matrix is None:
-            logger.warning("Missing damaged geometry or mask")
-            return state
-
         logger.info(f"[Iteration {state.iteration}] Running Healing Agent")
 
         new_state = state.copy()
 
-        # Simple inpainting (not ML-based for MVP)
-        healed = self.inpaint_morphological(state.damaged_geometry, state.mask_matrix)
-        new_state.healed_geometry = healed
+        # If no damaged geometry, use original as healed
+        if state.damaged_geometry is None or state.mask_matrix is None:
+            logger.warning("Missing damaged geometry or mask, using original image as healed fallback")
+            if state.original_image is not None:
+                new_state.healed_geometry = state.original_image.copy()
+            else:
+                new_state.healed_geometry = None
+            return new_state
 
-        logger.info("Geometry healed using morphological inpainting")
+        try:
+            # Simple inpainting (not ML-based for MVP)
+            healed = self.inpaint_morphological(state.damaged_geometry, state.mask_matrix)
+            new_state.healed_geometry = healed
+            logger.info("Geometry healed using morphological inpainting")
+        except Exception as e:
+            logger.error(f"Healing error: {e}, using damaged geometry as fallback")
+            new_state.healed_geometry = state.damaged_geometry.copy()
 
         return new_state
