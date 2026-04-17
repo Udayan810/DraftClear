@@ -51,9 +51,16 @@ function handleFileSelect() {
     const file = fileInput.files[0];
     if (!file) return;
 
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-        showError('Please select a valid image file (PNG, JPG, BMP)');
+    // Validate file type - support images and CAD formats
+    const validImageTypes = ['image/png', 'image/jpeg', 'image/bmp', 'image/gif', 'image/webp'];
+    const validCADExtensions = ['.dwg', '.dxf', '.DWG', '.DXF'];
+    const fileName = file.name.toLowerCase();
+
+    const isValidImage = validImageTypes.includes(file.type);
+    const isValidCAD = validCADExtensions.some(ext => fileName.endsWith(ext));
+
+    if (!isValidImage && !isValidCAD) {
+        showError('Please select a valid file: Image (PNG, JPG, BMP) or CAD (DWG, DXF)');
         return;
     }
 

@@ -17,6 +17,7 @@ from pydantic import BaseModel
 from orchestrator import LangGraphOrchestrator
 from utils.drawing_state import DrawingState
 from pdf_compiler import PDFCompiler
+from cad_converter import CADConverter
 from config.settings import OUTPUTS_DIR
 
 # Setup logging
@@ -98,22 +99,32 @@ async def process_image(file: UploadFile = File(...), output_name: str = "proces
     Process CAD image through DraftClear pipeline
 
     Args:
-        file: Input image file
+        file: Input image file (PNG, JPG, BMP, DXF, DWG)
         output_name: Name for output artifacts
 
     Returns:
         ProcessResponse with results
     """
-    logger.info(f"Processing image: {file.filename}")
+    logger.info(f"Processing file: {file.filename}")
 
     try:
         # Read uploaded file
         contents = await file.read()
-        nparr = np.frombuffer(contents, np.uint8)
-        image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
-        if image is None:
-            raise HTTPException(status_code=400, detail="Invalid image file")
+        # Check if it's a CAD file
+        if CADConverter.is_cad_file(file.filename):
+            logger.info(f"Detected CAD file: {file.filename}")
+            image = CADConverter.convert_cad_file(contents, file.filename)
+
+            if image is None:
+                raise HTTPException(status_code=400, detail="Failed to convert CAD file. Please ensure it's a valid DXF or DWG file.")
+        else:
+            # It's an image file
+            nparr = np.frombuffer(contents, np.uint8)
+            image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+            if image is None:
+                raise HTTPException(status_code=400, detail="Invalid image file")
 
         # Create initial state
         initial_state = DrawingState(original_image=image)
@@ -129,7 +140,7 @@ async def process_image(file: UploadFile = File(...), output_name: str = "proces
         # Prepare response
         return ProcessResponse(
             success=True,
-            message="Image processed successfully",
+            message="File processed successfully",
             iterations=final_state.iteration,
             text_labels=len(final_state.text_boxes),
             collision_count=final_state.collision_count,
@@ -140,6 +151,8 @@ async def process_image(file: UploadFile = File(...), output_name: str = "proces
             comparison_url=f"/api/download/image/{output_name}_comparison"
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Processing error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
