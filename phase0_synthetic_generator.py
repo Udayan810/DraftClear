@@ -4,7 +4,6 @@ Generates CAD drawings with intentional text-geometry collisions
 """
 import numpy as np
 import ezdxf
-from ezdxf.addons import DxfDocument
 from pathlib import Path
 import random
 from config.settings import DATA_DIR

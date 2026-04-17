@@ -114,7 +114,19 @@ class LangGraphOrchestrator:
             try:
                 # Run graph
                 result = self.graph.invoke(state)
-                return result
+
+                # Extract DrawingState from result if it's a dict
+                if isinstance(result, dict):
+                    # LangGraph returns the final state from the graph
+                    # The result should contain the DrawingState or its attributes
+                    if isinstance(result, DrawingState):
+                        return result
+                    else:
+                        # If it's a dict, try to convert back to DrawingState
+                        logger.warning("LangGraph returned dict instead of DrawingState, using fallback")
+                        return self._run_simple_orchestration(state)
+                else:
+                    return result
             except Exception as e:
                 logger.error(f"LangGraph execution error: {e}")
                 logger.info("Falling back to simple orchestration")
