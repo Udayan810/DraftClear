@@ -34,6 +34,8 @@ class PDFCompiler:
         """
         logger.info(f"Compiling PDF: {output_name}")
 
+        # Ensure output directory exists
+        OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
         output_path = OUTPUTS_DIR / f"{output_name}.pdf"
 
         try:
@@ -74,6 +76,8 @@ class PDFCompiler:
 
         except Exception as e:
             logger.error(f"PDF compilation error: {e}")
+            import traceback
+            traceback.print_exc()
             return None
 
     @staticmethod
@@ -89,6 +93,9 @@ class PDFCompiler:
             Path to comparison image
         """
         logger.info("Creating comparison report")
+
+        # Ensure output directory exists
+        OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
 
         try:
             # Load images
@@ -118,4 +125,6 @@ class PDFCompiler:
 
         except Exception as e:
             logger.error(f"Comparison creation error: {e}")
+            import traceback
+            traceback.print_exc()
             return None

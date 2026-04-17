@@ -161,13 +161,17 @@ async def process_image(file: UploadFile = File(...), output_name: str = "proces
 @app.get("/api/download/pdf/{filename}")
 async def download_pdf(filename: str):
     """Download generated PDF"""
-    pdf_path = OUTPUTS_DIR / f"{filename}.pdf"
+    from pathlib import Path
+
+    pdf_path = Path(OUTPUTS_DIR) / f"{filename}.pdf"
 
     if not pdf_path.exists():
-        raise HTTPException(status_code=404, detail="PDF not found")
+        logger.warning(f"PDF not found: {pdf_path}")
+        raise HTTPException(status_code=404, detail=f"PDF not found: {filename}.pdf")
 
+    logger.info(f"Downloading PDF: {pdf_path}")
     return FileResponse(
-        path=pdf_path,
+        path=str(pdf_path),
         media_type="application/pdf",
         filename=f"{filename}.pdf"
     )
@@ -176,13 +180,17 @@ async def download_pdf(filename: str):
 @app.get("/api/download/image/{filename}")
 async def download_image(filename: str):
     """Download generated image"""
-    img_path = OUTPUTS_DIR / f"{filename}.png"
+    from pathlib import Path
+
+    img_path = Path(OUTPUTS_DIR) / f"{filename}.png"
 
     if not img_path.exists():
-        raise HTTPException(status_code=404, detail="Image not found")
+        logger.warning(f"Image not found: {img_path}")
+        raise HTTPException(status_code=404, detail=f"Image not found: {filename}.png")
 
+    logger.info(f"Downloading image: {img_path}")
     return FileResponse(
-        path=img_path,
+        path=str(img_path),
         media_type="image/png",
         filename=f"{filename}.png"
     )
