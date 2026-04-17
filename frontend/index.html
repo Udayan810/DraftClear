@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DraftClear - CAD Drawing Intelligence</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Navigation Header -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="navbar-brand">
+                <i class="fas fa-cube"></i>
+                <span class="brand-text">DraftClear</span>
+                <span class="brand-subtitle">AI-Powered CAD Intelligence</span>
+            </div>
+            <div class="navbar-links">
+                <a href="#features" class="nav-link">Features</a>
+                <a href="#how-it-works" class="nav-link">How It Works</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <h1 class="hero-title">Intelligent CAD Label Resolution</h1>
+            <p class="hero-subtitle">Automatically resolve label placement conflicts in engineering drawings using advanced AI</p>
+            <div class="hero-stats">
+                <div class="stat">
+                    <div class="stat-value">100%</div>
+                    <div class="stat-label">Collision-Free</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">5x</div>
+                    <div class="stat-label">Faster Processing</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">AI</div>
+                    <div class="stat-label">Supervised</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Main Content -->
+    <div class="container main-container">
+        <div class="content-grid">
+            <!-- Upload Section -->
+            <section class="upload-section">
+                <div class="section-header">
+                    <h2 class="section-title">Upload CAD Drawing</h2>
+                    <p class="section-description">Support for PNG, JPG, and BMP formats</p>
+                </div>
+
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                    </div>
+                    <h3>Drag & Drop Your Drawing Here</h3>
+                    <p>or</p>
+                    <button class="btn btn-primary" id="fileButton">Browse Files</button>
+                    <input type="file" id="fileInput" accept="image/*" hidden>
+                </div>
+
+                <div id="previewSection" class="preview-section hidden">
+                    <div class="preview-header">
+                        <h3>Preview</h3>
+                        <button class="btn-icon" id="clearButton" title="Clear">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <img id="previewImage" src="" alt="Preview" class="preview-image">
+                </div>
+
+                <div class="processing-controls">
+                    <input type="text" id="outputName" placeholder="Output Name (e.g., drawing_001)" class="input-field">
+                    <button class="btn btn-success btn-large" id="processButton" disabled>
+                        <i class="fas fa-play"></i> Process Drawing
+                    </button>
+                </div>
+            </section>
+
+            <!-- Processing Info -->
+            <section class="info-section">
+                <div class="info-card">
+                    <h3 class="info-title">
+                        <i class="fas fa-microchip"></i> AI Pipeline
+                    </h3>
+                    <ul class="info-list">
+                        <li><span class="badge">1</span> Text Detection (YOLOv10)</li>
+                        <li><span class="badge">2</span> Geometry Masking</li>
+                        <li><span class="badge">3</span> Spatial Resolution</li>
+                        <li><span class="badge">4</span> Geometry Healing</li>
+                        <li><span class="badge">5</span> Smart Validation</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <h3 class="info-title">
+                        <i class="fas fa-chart-bar"></i> Quality Metrics
+                    </h3>
+                    <ul class="info-list">
+                        <li><i class="fas fa-check"></i> OCR Recovery Rate</li>
+                        <li><i class="fas fa-check"></i> Collision Detection</li>
+                        <li><i class="fas fa-check"></i> Orthogonal Integrity</li>
+                        <li><i class="fas fa-check"></i> Structural Fidelity</li>
+                    </ul>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- Progress Section -->
+    <section id="progressSection" class="progress-section hidden">
+        <div class="container">
+            <div class="progress-header">
+                <h2>Processing in Progress...</h2>
+                <div class="spinner"></div>
+            </div>
+
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+
+            <div class="progress-steps">
+                <div class="step active" id="step1">
+                    <div class="step-icon"><i class="fas fa-eye"></i></div>
+                    <div class="step-label">Detection</div>
+                </div>
+                <div class="step" id="step2">
+                    <div class="step-icon"><i class="fas fa-mask"></i></div>
+                    <div class="step-label">Masking</div>
+                </div>
+                <div class="step" id="step3">
+                    <div class="step-icon"><i class="fas fa-compass"></i></div>
+                    <div class="step-label">Positioning</div>
+                </div>
+                <div class="step" id="step4">
+                    <div class="step-icon"><i class="fas fa-wand-magic-sparkles"></i></div>
+                    <div class="step-label">Healing</div>
+                </div>
+                <div class="step" id="step5">
+                    <div class="step-icon"><i class="fas fa-brain"></i></div>
+                    <div class="step-label">Validation</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Results Section -->
+    <section id="resultsSection" class="results-section hidden">
+        <div class="container">
+            <div class="results-header">
+                <h2>Processing Complete</h2>
+                <button class="btn btn-secondary" id="newProcessButton">
+                    <i class="fas fa-plus"></i> Process Another
+                </button>
+            </div>
+
+            <!-- Metrics Card -->
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-icon"><i class="fas fa-circle-check"></i></div>
+                    <div class="metric-value" id="metricIterations">-</div>
+                    <div class="metric-label">Iterations</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-icon"><i class="fas fa-font"></i></div>
+                    <div class="metric-value" id="metricLabels">-</div>
+                    <div class="metric-label">Text Labels</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-icon"><i class="fas fa-ban"></i></div>
+                    <div class="metric-value" id="metricCollisions">0</div>
+                    <div class="metric-label">Collisions Resolved</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-icon"><i class="fas fa-shield-check"></i></div>
+                    <div class="metric-value" id="metricDecision">-</div>
+                    <div class="metric-label">Status</div>
+                </div>
+            </div>
+
+            <!-- Comparison View -->
+            <div class="comparison-section">
+                <h3>Before & After</h3>
+                <div class="comparison-container">
+                    <div class="comparison-item">
+                        <label>Original</label>
+                        <img id="originalImage" src="" alt="Original" class="comparison-image">
+                    </div>
+                    <div class="comparison-arrows">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                    <div class="comparison-item">
+                        <label>Processed</label>
+                        <img id="processedImage" src="" alt="Processed" class="comparison-image">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Downloads -->
+            <div class="downloads-section">
+                <h3>Download Results</h3>
+                <div class="download-buttons">
+                    <a id="downloadPdf" href="#" class="btn btn-primary">
+                        <i class="fas fa-file-pdf"></i> Download PDF Report
+                    </a>
+                    <a id="downloadComparison" href="#" class="btn btn-primary">
+                        <i class="fas fa-image"></i> Download Comparison
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="features-section">
+        <div class="container">
+            <h2>Key Features</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <h3>AI-Powered Detection</h3>
+                    <p>YOLOv10 for precise text label detection in complex CAD drawings</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-brain"></i>
+                    </div>
+                    <h3>Intelligent Reasoning</h3>
+                    <p>Ollama-based supervisor for smart decision making and validation</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-cog"></i>
+                    </div>
+                    <h3>Geometric Precision</h3>
+                    <p>Shapely-based computational geometry for accurate repositioning</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-zap"></i>
+                    </div>
+                    <h3>Fast Processing</h3>
+                    <p>Optimized pipeline for real-time CAD drawing analysis</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-check-double"></i>
+                    </div>
+                    <h3>100% Collision-Free</h3>
+                    <p>Guarantees zero overlaps in final output</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-file-export"></i>
+                    </div>
+                    <h3>Multiple Exports</h3>
+                    <p>PDF reports and high-quality images for professional use</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Error Notification -->
+    <div id="errorNotification" class="notification notification-error hidden">
+        <div class="notification-content">
+            <i class="fas fa-exclamation-circle"></i>
+            <span id="errorMessage"></span>
+        </div>
+        <button class="notification-close" onclick="closeNotification()">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+
+    <!-- Success Notification -->
+    <div id="successNotification" class="notification notification-success hidden">
+        <div class="notification-content">
+            <i class="fas fa-check-circle"></i>
+            <span id="successMessage"></span>
+        </div>
+        <button class="notification-close" onclick="closeNotification()">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

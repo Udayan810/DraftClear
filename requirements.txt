@@ -1,0 +1,63 @@
+# Core AI & Orchestration
+langgraph
+langchain
+langchain-community
+python-dotenv
+
+# Deep Learning & Vision
+torch
+torchvision
+opencv-python
+Pillow
+
+# Object Detection
+ultralytics
+
+# Computational Geometry
+numpy
+shapely
+rtree
+scipy
+
+# CAD/DXF Processing
+ezdxf
+
+# PDF Processing
+PyMuPDF
+reportlab
+
+# Task Queuing & Async
+celery
+redis
+
+# Optional: GAN/Inpainting Models (if using torchvision models)
+timm
+
+# Utilities & Logging
+pydantic
+loguru
+tqdm
+requests
+
+# Testing
+pytest
+pytest-asyncio
+
+# Development Tools
+black
+flake8
+mypy
+
+# Optional: For local LLM inference (Ollama integration)
+# Note: Ollama should be installed separately - see below
+
+# Optional: FastAPI for serving models locally
+fastapi
+uvicorn
+
+# Optional: For MinIO (S3-compatible storage)
+minio
+
+# Optional: For better performance on specific operations
+scikit-image
+imageio
