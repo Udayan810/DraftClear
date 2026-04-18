@@ -26,7 +26,6 @@ const logoutButton = document.getElementById('logoutButton');
 uploadArea.addEventListener('dragover', handleDragOver);
 uploadArea.addEventListener('drop', handleDrop);
 uploadArea.addEventListener('click', () => fileInput.click());
-fileButton.addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', handleFileSelect);
 clearButton.addEventListener('click', clearFile);
 processButton.addEventListener('click', processImage);
@@ -35,8 +34,9 @@ downloadPdfButton.addEventListener('click', handleDownloadClick);
 downloadComparisonButton.addEventListener('click', handleDownloadClick);
 if (logoutButton) {
     logoutButton.addEventListener('click', (e) => {
-        // Any logout logic (e.g. clearing session) can go here
-        console.log('User logging out...');
+        e.preventDefault();
+        localStorage.removeItem('dc_token');
+        window.location.href = 'login.html';
     });
 }
 
@@ -111,10 +111,9 @@ function displayPreview(file) {
                 <div style="font-weight: 700; font-size: 1rem; color:#00338D;">DWG File Loaded</div>
                 <div style="font-size: 0.82rem; color: #555; text-align:center; line-height:1.7;">
                     <strong>${file.name}</strong> &nbsp;·&nbsp; ${(file.size / 1024).toFixed(1)} KB &nbsp;·&nbsp; DWG format<br>
-                    <span style="color:#00338D; font-weight:600;">✓ File accepted — click Process Drawing to continue</span><br>
+                    <span style="color:#00338D; font-weight:600;">✓ DWG File supported — clearing conflicts internally</span><br>
                     <span style="font-size:0.78rem; color:#888;">
-                        Note: If processing fails, convert to DXF first using
-                        <a href="https://www.online-convert.com/" target="_blank" style="color:#00338D;">an online converter</a>
+                        Direct processing enabled via internal converter.
                     </span>
                 </div>
             `;
@@ -189,6 +188,12 @@ async function processImage() {
     progressSection.classList.remove('hidden');
     resultsSection.classList.add('hidden');
 
+    // Button loading state
+    const originalBtnContent = processButton.innerHTML;
+    processButton.disabled = true;
+    processButton.classList.add('btn-loading');
+    processButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+
     try {
         // Create FormData
         const formData = new FormData();
@@ -198,11 +203,24 @@ async function processImage() {
         // Show processing steps animation
         animateProgressSteps();
 
-        // Call API
+        // Call API with Auth Header
+        const token = localStorage.getItem('dc_token');
+        const headers = {};
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
         const response = await fetch(`${API_BASE_URL}/process`, {
             method: 'POST',
+            headers: headers,
             body: formData
         });
+
+        if (response.status === 401 || response.status === 403) {
+            localStorage.removeItem('dc_token');
+            window.location.href = 'login.html';
+            return;
+        }
 
         if (!response.ok) {
             const error = await response.json();
@@ -220,6 +238,11 @@ async function processImage() {
     } catch (error) {
         showError(`Processing failed: ${error.message}`);
         progressSection.classList.add('hidden');
+    } finally {
+        // Restore button state
+        processButton.disabled = false;
+        processButton.classList.remove('btn-loading');
+        processButton.innerHTML = originalBtnContent;
     }
 }
 
@@ -244,21 +267,23 @@ function displayResults(result) {
     progressSection.classList.add('hidden');
     resultsSection.classList.remove('hidden');
 
+    // For simplicity, we display metrics for the first page in the main view
+    const mainPage = result.pages[0] || {};
+    
     // Update metrics
-    document.getElementById('metricIterations').textContent = result.iterations;
-    document.getElementById('metricLabels').textContent = result.text_labels;
-    document.getElementById('metricCollisions').textContent = result.collision_count;
-    document.getElementById('metricDecision').textContent = result.supervisor_decision === 'compile' ? '✓ Complete' : '⚠ In Progress';
+    document.getElementById('metricIterations').textContent = mainPage.iterations || 0;
+    document.getElementById('metricLabels').textContent = mainPage.text_labels || 0;
+    document.getElementById('metricCollisions').textContent = mainPage.collision_count || 0;
+    document.getElementById('metricDecision').textContent = 
+        result.total_pages > 1 ? `✓ ${result.total_pages} Pages` : (mainPage.supervisor_decision === 'compile' ? '✓ Complete' : '⚠ In Progress');
 
-    // Display images
+    // Display images (Page 1 previews)
     const cacheBuster = `ts=${Date.now()}`;
-    const originalImageUrl = result.original_image_url ? `${result.original_image_url}?${cacheBuster}` : '';
-    const processedImageUrl = result.processed_image_url ? `${result.processed_image_url}?${cacheBuster}` : '';
-    const originalBase64Url = result.original_image ? `data:image/png;base64,${result.original_image}` : '';
-    const processedBase64Url = result.healed_image ? `data:image/png;base64,${result.healed_image}` : '';
+    const originalImageUrl = mainPage.original_image_url ? `${mainPage.original_image_url}?${cacheBuster}` : '';
+    const processedImageUrl = mainPage.processed_image_url ? `${mainPage.processed_image_url}?${cacheBuster}` : '';
 
-    setResultImage(originalResultImage, originalImageUrl || originalBase64Url, '');
-    setResultImage(processedResultImage, processedImageUrl || processedBase64Url, originalImageUrl || originalBase64Url);
+    setResultImage(originalResultImage, originalImageUrl, '');
+    setResultImage(processedResultImage, processedImageUrl, originalImageUrl);
 
     // Update download links
     setDownloadTarget(downloadPdfButton, '', '');
@@ -271,26 +296,45 @@ function displayResults(result) {
         setDownloadTarget(downloadComparisonButton, result.comparison_url, `${currentProcessName}_comparison.png`);
     }
 
-    // Scroll to results
+    // Show warning if 0 labels detected (common with watermarked evaluation files)
+    if (result.text_labels === 0) {
+        showSuccessNotification("Processing complete, but 0 labels were detected. This may happen if the file is watermarked or uses an unsupported version.");
+    }
+
+    // Scroll with a slight delay to ensure images have started loading
     setTimeout(() => {
-        resultsSection.scrollIntoView({ behavior: 'smooth' });
+        resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 500);
 }
 
 function setResultImage(imageElement, primarySource, fallbackSource) {
+    if (!imageElement) return;
+    
+    // Reset state and clear previous image while loading
     imageElement.onerror = null;
-
+    imageElement.style.opacity = '0'; // Hide while loading
+    
     if (!primarySource && !fallbackSource) {
         imageElement.src = '';
         return;
     }
 
-    if (fallbackSource && primarySource !== fallbackSource) {
-        imageElement.onerror = () => {
-            imageElement.onerror = null;
+    // When image loads successfully
+    imageElement.onload = () => {
+        imageElement.style.opacity = '1';
+        imageElement.style.transition = 'opacity 0.4s ease';
+    };
+
+    // If primary fails, try fallback
+    imageElement.onerror = () => {
+        console.warn("Primary image load failed, trying fallback");
+        imageElement.onerror = null;
+        if (fallbackSource && primarySource !== fallbackSource) {
             imageElement.src = fallbackSource;
-        };
-    }
+        } else {
+            imageElement.style.opacity = '0.3'; // Dimmed state for failed image
+        }
+    };
 
     imageElement.src = primarySource || fallbackSource;
 }

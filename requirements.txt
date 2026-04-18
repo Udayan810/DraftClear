@@ -21,6 +21,7 @@ scipy
 
 # CAD/DXF Processing
 ezdxf
+aspose-cad
 
 # PDF Processing
 PyMuPDF

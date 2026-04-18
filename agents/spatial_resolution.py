@@ -4,6 +4,7 @@ from typing import List, Tuple
 from shapely.geometry import box
 from config.settings import ORTHOGONAL_ANGLES, PADDING, COLLISION_THRESHOLD
 from utils.drawing_state import DrawingState, TextBox
+from utils.observability import observe
 from utils.geometry import create_box_polygon, find_safe_zone, calculate_collision_area
 
 logger = logging.getLogger(__name__)
@@ -27,8 +28,8 @@ class SpatialResolutionAgent:
         else:
             gray = image
 
-        # Threshold: consider non-white pixels as geometry
-        _, binary = cv2.threshold(gray, 240, 255, cv2.THRESH_BINARY_INV)
+        # Use Otsu's thresholding to handle various background shades/colors automatically
+        _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
 
         # Find contours
         contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -121,6 +122,7 @@ class SpatialResolutionAgent:
 
         return new_coordinates, collision_count
 
+    @observe()
     def run(self, state: DrawingState) -> DrawingState:
         """
         Execute spatial resolution agent

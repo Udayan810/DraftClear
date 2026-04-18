@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DraftClear - Login</title>
+    <title>DraftClear - Sign Up</title>
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Font Awesome -->
@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="login.css">
     <style>
         .error-msg { color: #ea4335; font-size: 0.85rem; margin-top: 0.5rem; text-align: center; display: none;}
+        .success-msg { color: #27ae60; font-size: 0.85rem; margin-top: 0.5rem; text-align: center; display: none;}
     </style>
 </head>
 <body>
@@ -26,11 +27,11 @@
                 <div class="logo">
                     <i class="fas fa-cube"></i> DraftClear
                 </div>
-                <h2>Welcome Back</h2>
-                <p>Sign in to access AI-Powered CAD Intelligence</p>
+                <h2>Create an Account</h2>
+                <p>Join DraftClear for AI-Powered CAD Intelligence</p>
             </div>
             
-            <form class="login-form" id="loginForm">
+            <form class="login-form" id="signupForm">
                 <div class="input-group">
                     <div class="input-icon">
                         <i class="fas fa-envelope"></i>
@@ -43,27 +44,27 @@
                     <div class="input-icon">
                         <i class="fas fa-lock"></i>
                     </div>
-                    <input type="password" id="password" required autocomplete="current-password">
+                    <input type="password" id="password" required autocomplete="new-password">
                     <label for="password">Password</label>
                     <button type="button" class="toggle-password" id="togglePassword">
                         <i class="fas fa-eye"></i>
                     </button>
                 </div>
-                
-                <div class="form-actions">
-                    <label class="remember-me">
-                        <input type="checkbox">
-                        <span class="checkmark"></span>
-                        Remember me
-                    </label>
-                    <a href="#" class="forgot-password">Forgot password?</a>
+
+                <div class="input-group">
+                    <div class="input-icon">
+                        <i class="fas fa-lock"></i>
+                    </div>
+                    <input type="password" id="confirmPassword" required autocomplete="new-password">
+                    <label for="confirmPassword">Confirm Password</label>
                 </div>
 
                 <div id="errorMsg" class="error-msg"></div>
+                <div id="successMsg" class="success-msg"></div>
                 
                 <button type="submit" class="submit-btn" id="submitBtn">
-                    <span>Sign In</span>
-                    <i class="fas fa-arrow-right"></i>
+                    <span>Sign Up</span>
+                    <i class="fas fa-user-plus"></i>
                 </button>
                 
                 <div class="divider">
@@ -81,13 +82,13 @@
             </form>
             
             <div class="login-footer">
-                <p>Don't have an account? <a href="signup.html">Create one</a></p>
+                <p>Already have an account? <a href="login.html">Sign In</a></p>
             </div>
         </div>
     </div>
     
     <script>
-        // Simple password toggle logic
+        // Password toggle
         document.getElementById('togglePassword').addEventListener('click', function() {
             const passwordInput = document.getElementById('password');
             const icon = this.querySelector('i');
@@ -102,43 +103,55 @@
                 icon.classList.add('fa-eye');
             }
         });
+
         // Form submission
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        document.getElementById('signupForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
             const errorMsg = document.getElementById('errorMsg');
-            const submitBtn = document.getElementById('submitBtn');
+            const successMsg = document.getElementById('successMsg');
+            const btn = document.getElementById('submitBtn');
 
             errorMsg.style.display = 'none';
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Signing in...';
+            successMsg.style.display = 'none';
+
+            if (password !== confirmPassword) {
+                errorMsg.textContent = "Passwords do not match.";
+                errorMsg.style.display = 'block';
+                return;
+            }
+
+            if (password.length < 6) {
+                errorMsg.textContent = "Password must be at least 6 characters.";
+                errorMsg.style.display = 'block';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
 
             try {
-                // OAuth2PasswordRequestForm needs form data, NOT application/json
-                const formData = new URLSearchParams();
-                formData.append('username', email);
-                formData.append('password', password);
-
-                const response = await fetch('/api/auth/login', {
+                const response = await fetch('/api/auth/register', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: formData.toString()
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
                 });
 
                 if (response.ok) {
-                    const data = await response.json();
-                    localStorage.setItem('dc_token', data.access_token);
-                    window.location.href = 'index.html';
+                    successMsg.textContent = "Registration successful! Redirecting to login...";
+                    successMsg.style.display = 'block';
+                    setTimeout(() => window.location.href = 'login.html', 1500);
                 } else {
                     const data = await response.json();
-                    throw new Error(data.detail || "Login failed");
+                    throw new Error(data.detail || "Registration failed");
                 }
             } catch (err) {
                 errorMsg.textContent = err.message;
                 errorMsg.style.display = 'block';
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = '<span>Sign In</span><i class="fas fa-arrow-right"></i>';
+                btn.disabled = false;
+                btn.innerHTML = '<span>Sign Up</span> <i class="fas fa-user-plus"></i>';
             }
         });
     </script>

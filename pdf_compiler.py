@@ -50,73 +50,79 @@ class PDFCompiler:
         return np.ascontiguousarray(normalized)
 
     @staticmethod
-    def compile_pdf(state: DrawingState, output_name: str = "output") -> str:
+    def compile_pdf(states: list[DrawingState], output_name: str = "output") -> str:
         """
-        Compile final PDF with healed geometry and repositioned text
-
-        Args:
-            state: Final DrawingState from pipeline
-            output_name: Name for output PDF
-
-        Returns:
-            Path to generated PDF
+        Compile final multi-page PDF with healed geometry and repositioned text for each page
         """
-        logger.info(f"Compiling PDF: {output_name}")
+        logger.info(f"Compiling Multi-page PDF: {output_name}")
 
-        # Ensure output directory exists
         OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
         output_path = OUTPUTS_DIR / f"{output_name}.pdf"
 
+        # Make states a list if it's not
+        if not isinstance(states, list):
+            states = [states]
+
         try:
-            # Create canvas
             c = canvas.Canvas(str(output_path), pagesize=letter)
             width, height = letter
 
-            # Draw healed geometry image (fallback to original if healed is None)
-            image_to_draw = PDFCompiler._normalize_image(state.healed_geometry, fallback=state.original_image)
-            if image_to_draw is not None:
-                geometry_img_path = OUTPUTS_DIR / f"{output_name}_geometry_temp.png"
-                if not cv2.imwrite(str(geometry_img_path), image_to_draw):
-                    raise ValueError("Failed to write temporary geometry image for PDF compilation")
+            for idx, state in enumerate(states):
+                page_num = idx + 1
+                logger.info(f"Adding page {page_num} to PDF")
+                
+                # Draw healed geometry image
+                image_to_draw = PDFCompiler._normalize_image(state.healed_geometry, fallback=state.original_image)
+                if image_to_draw is not None:
+                    geometry_img_path = OUTPUTS_DIR / f"{output_name}_p{page_num}_geometry_temp.png"
+                    cv2.imwrite(str(geometry_img_path), image_to_draw)
 
-                # Scale image to fit page while preserving aspect ratio.
-                img_h, img_w = image_to_draw.shape[:2]
-                max_width = width - 100
-                max_height = 400
-                scale = min(max_width / img_w, max_height / img_h)
-                draw_width = img_w * scale
-                draw_height = img_h * scale
-                draw_x = (width - draw_width) / 2
-                draw_y = height - 100 - draw_height
+                    img_h, img_w = image_to_draw.shape[:2]
+                    max_width = width - 100
+                    max_height = 400
+                    scale = min(max_width / img_w, max_height / img_h)
+                    draw_width = img_w * scale
+                    draw_height = img_h * scale
+                    draw_x = (width - draw_width) / 2
+                    draw_y = height - 100 - draw_height
 
-                c.drawString(50, height - 50, f"DraftClear - Processed Drawing ({output_name})")
-                c.drawImage(str(geometry_img_path), draw_x, draw_y, width=draw_width, height=draw_height)
-                if geometry_img_path.exists():
-                    geometry_img_path.unlink()
-            else:
-                c.drawString(50, height - 50, "DraftClear - No geometry available to display")
+                    c.drawString(50, height - 50, f"DraftClear - Page {page_num} ({output_name})")
+                    c.drawImage(str(geometry_img_path), draw_x, draw_y, width=draw_width, height=draw_height)
+                    
+                    if geometry_img_path.exists():
+                        geometry_img_path.unlink()
+                else:
+                    c.drawString(50, height - 50, f"DraftClear - Page {page_num}: No geometry available")
 
-            # Add repositioned text labels
-            if state.new_coordinates:
+                # Add repositioned text labels
                 y_pos = height - 550
-                c.drawString(50, y_pos, "Repositioned Text Labels:")
+                c.drawString(50, y_pos, f"Repositioned Text Labels (Page {page_num}):")
                 y_pos -= 20
 
-                for i, text_box in enumerate(state.new_coordinates):
-                    label = f"{i+1}. Position: ({text_box.x:.1f}, {text_box.y:.1f}) | " \
-                            f"Size: {text_box.w:.1f}x{text_box.h:.1f} | Confidence: {text_box.confidence:.2f}"
-                    c.drawString(70, y_pos, label)
-                    y_pos -= 15
-                    if y_pos < 50:
-                        c.showPage()
-                        y_pos = height - 50
+                if state.new_coordinates:
+                    for i, text_box in enumerate(state.new_coordinates):
+                        label = f"{i+1}. Position: ({text_box.x:.1f}, {text_box.y:.1f}) | Color: Blue"
+                        c.drawString(70, y_pos, label)
+                        y_pos -= 15
+                        if y_pos < 50:
+                            c.showPage()
+                            y_pos = height - 50
+                else:
+                    c.drawString(70, y_pos, "No collisions detected/resolved on this page.")
 
-            # Add metadata
-            c.drawString(50, 30, f"Generated by DraftClear | Iterations: {state.iteration} | Collisions: {state.collision_count}")
+                # Add metadata at bottom
+                c.drawString(50, 30, f"Page {page_num} | Iterations: {state.iteration} | Collisions: {state.collision_count}")
+                
+                # Close the page and start a new one for next state
+                c.showPage()
 
             c.save()
-            logger.info(f"PDF saved: {output_path}")
+            logger.info(f"Multi-page PDF saved: {output_path}")
             return str(output_path)
+
+        except Exception as e:
+            logger.error(f"Multi-page PDF compilation error: {e}")
+            return None
 
         except Exception as e:
             logger.error(f"PDF compilation error: {e}")

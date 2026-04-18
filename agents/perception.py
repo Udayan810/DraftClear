@@ -5,6 +5,7 @@ import cv2
 from ultralytics import YOLO
 from config.settings import YOLO_MODEL, CONFIDENCE_THRESHOLD, IOU_THRESHOLD
 from utils.drawing_state import DrawingState, TextBox
+from utils.observability import observe
 
 logger = logging.getLogger(__name__)
 
@@ -44,9 +45,9 @@ class PerceptionAgent:
             if results and len(results) > 0:
                 result = results[0]
                 if result.boxes is not None:
-                    boxes = result.boxes
+                    raw_boxes = result.boxes
 
-                    for box in boxes:
+                    for box in raw_boxes:
                         # Extract coordinates (center x, y, width, height)
                         x_center, y_center, width, height = box.xywh[0].cpu().numpy()
                         confidence = box.conf[0].cpu().item()
@@ -56,12 +57,42 @@ class PerceptionAgent:
                             y=float(y_center),
                             w=float(width),
                             h=float(height),
-                            confidence=float(confidence),
-                            text="",  # OCR not implemented yet
-                            rotated=False,
-                            angle=0
+                            confidence=float(confidence)
                         )
                         text_boxes.append(text_box)
+
+            # Perform AI Deduplication (Internal "OVERKILL")
+            if text_boxes:
+                deduplicated = []
+                # Sort by confidence so we keep the best one
+                text_boxes.sort(key=lambda x: x.confidence, reverse=True)
+                
+                for box in text_boxes:
+                    is_duplicate = False
+                    for existing in deduplicated:
+                        # Calculate IoU
+                        xA = max(box.x - box.w/2, existing.x - existing.w/2)
+                        yA = max(box.y - box.h/2, existing.y - existing.h/2)
+                        xB = min(box.x + box.w/2, existing.x + existing.w/2)
+                        yB = min(box.y + box.h/2, existing.y + existing.h/2)
+                        
+                        inter_w = max(0, xB - xA)
+                        inter_h = max(0, yB - yA)
+                        inter_area = inter_w * inter_h
+                        
+                        box_area = box.w * box.h
+                        iou = inter_area / float(box_area) if box_area > 0 else 0
+                        
+                        if iou > 0.8: # high overlap detected
+                            is_duplicate = True
+                            break
+                    
+                    if not is_duplicate:
+                        deduplicated.append(box)
+                
+                if len(text_boxes) != len(deduplicated):
+                    logger.info(f"AI Overkill: Deduplicated {len(text_boxes) - len(deduplicated)} overlapping labels")
+                text_boxes = deduplicated
 
             logger.info(f"Detected {len(text_boxes)} text labels")
             return text_boxes
@@ -70,6 +101,7 @@ class PerceptionAgent:
             logger.error(f"Error during text detection: {e}")
             return []
 
+    @observe()
     def run(self, state: DrawingState) -> DrawingState:
         """
         Execute perception agent on drawing state

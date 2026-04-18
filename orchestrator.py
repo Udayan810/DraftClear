@@ -5,6 +5,7 @@ Implements cyclical workflow with state management
 import logging
 from typing import Literal
 from utils.drawing_state import DrawingState
+from utils.observability import observe
 
 logger = logging.getLogger(__name__)
 
@@ -106,6 +107,7 @@ class LangGraphOrchestrator:
         else:
             return "loop"
 
+    @observe()
     def run(self, state: DrawingState) -> DrawingState:
         """Execute the orchestrated workflow"""
         logger.info("Starting LangGraph workflow execution")

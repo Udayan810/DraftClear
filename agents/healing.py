@@ -3,6 +3,7 @@ import numpy as np
 import cv2
 from PIL import Image, ImageDraw
 from utils.drawing_state import DrawingState
+from utils.observability import observe
 
 logger = logging.getLogger(__name__)
 
@@ -46,14 +47,15 @@ class HealingAgent:
             image = (image).astype(np.uint8)
 
         # Dilate mask to expand inpainting region
-        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
         dilated_mask = cv2.dilate(mask, kernel, iterations=2)
 
         # Use morphological closing to fill holes
-        healed = cv2.morphologyEx(image, cv2.MORPH_CLOSE, kernel, iterations=2)
+        healed = cv2.morphologyEx(image, cv2.MORPH_CLOSE, kernel, iterations=3)
 
         return healed
 
+    @observe()
     def run(self, state: DrawingState) -> DrawingState:
         """
         Execute healing agent to repair damaged geometry

@@ -1,15 +1,15 @@
 :root {
     --kpmg-blue: #00338D;
-    --navy-blue: #001f54;
-    --dark-navy: #000c24;
-    --light-blue: #2B59C3;
-    --accent-blue: #487fff;
-    --text-primary: #ffffff;
-    --text-secondary: #94a3b8;
-    --bg-input: rgba(255, 255, 255, 0.05);
-    --border-color: rgba(255, 255, 255, 0.1);
-    --glass-bg: rgba(0, 12, 36, 0.6);
-    --glass-border: rgba(255, 255, 255, 0.08);
+    --navy-blue: #F0F4F8;         /* Light blue-grey background */
+    --dark-navy: #FFFFFF;         /* White background */
+    --light-blue: #E1E8F4;        /* Very light blue */
+    --accent-blue: #00338D;       /* KPMG Blue as accent */
+    --text-primary: #00153D;      /* Dark navy text */
+    --text-secondary: #53565A;    /* Muted grey text */
+    --bg-input: rgba(0, 51, 141, 0.03);
+    --border-color: rgba(0, 51, 141, 0.1);
+    --glass-bg: rgba(255, 255, 255, 0.8);
+    --glass-border: rgba(0, 51, 141, 0.08);
 }
 
 * {
@@ -20,7 +20,7 @@
 }
 
 body {
-    background-color: var(--dark-navy);
+    background-color: #FFFFFF;
     color: var(--text-primary);
     min-height: 100vh;
     overflow: hidden;
@@ -49,7 +49,7 @@ body {
     height: 100%;
     overflow: hidden;
     z-index: -1;
-    background: radial-gradient(circle at top right, var(--navy-blue) 0%, var(--dark-navy) 60%);
+    background: radial-gradient(circle at top right, #F8FAFC 0%, var(--dark-navy) 60%);
 }
 
 .shape {
@@ -81,7 +81,7 @@ body {
 .shape-3 {
     width: 30vh;
     height: 30vh;
-    background: #004bbf;
+    background: #F1F5F9;
     top: 40%;
     left: 50%;
     transform: translate(-50%, -50%);
@@ -104,7 +104,7 @@ body {
     border: 1px solid var(--glass-border);
     border-radius: 24px;
     padding: 3rem 2.5rem;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+    box-shadow: 0 25px 50px -12px rgba(0, 51, 141, 0.1), 0 0 0 1px rgba(0, 51, 141, 0.02) inset;
     transform: translateY(20px);
     opacity: 0;
     animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
@@ -129,9 +129,7 @@ body {
     font-size: 1.5rem;
     font-weight: 700;
     margin-bottom: 1.5rem;
-    background: linear-gradient(135deg, #ffffff 0%, #a5b4fc 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    color: var(--kpmg-blue);
 }
 
 .logo i {
@@ -230,7 +228,7 @@ body {
 }
 
 .toggle-password:hover {
-    color: var(--text-primary);
+    color: var(--kpmg-blue);
 }
 
 /* Actions: Remember & Forgot */
@@ -386,6 +384,7 @@ body {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 1rem;
+    width: 100%;
 }
 
 .social-btn {

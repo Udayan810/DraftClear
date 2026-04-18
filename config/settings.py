@@ -1,5 +1,9 @@
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Paths
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -13,7 +17,7 @@ TEST_INPUTS_DIR.mkdir(parents=True, exist_ok=True)
 
 # Model Configuration
 YOLO_MODEL = "yolov10n.pt"  # nano model for CPU
-CONFIDENCE_THRESHOLD = 0.5
+CONFIDENCE_THRESHOLD = 0.3
 IOU_THRESHOLD = 0.45
 
 # Geometry & Collision Detection

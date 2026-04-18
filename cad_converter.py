@@ -10,6 +10,7 @@ import os
 import subprocess
 import shutil
 import cv2
+import io
 
 logger = logging.getLogger(__name__)
 
@@ -226,11 +227,11 @@ class CADConverter:
             return None
 
     @classmethod
-    def convert_dxf_to_image(cls, dxf_bytes: bytes, output_width: int = 800, output_height: int = 600) -> np.ndarray:
+    def convert_dxf_to_image(cls, dxf_bytes: bytes, output_width: int = 800, output_height: int = 600) -> list[np.ndarray]:
         """
-        Convert DXF file bytes to numpy image array using ezdxf's renderer first,
-        then fall back to the lightweight entity renderer.
+        Convert DXF file bytes to a list of numpy image arrays (one per layout).
         """
+        images = []
         try:
             import ezdxf.recover
 
@@ -240,20 +241,35 @@ class CADConverter:
 
             try:
                 doc, auditor = ezdxf.recover.readfile(tmp_path)
-                if auditor.has_errors:
-                    logger.warning("DXF auditor reported errors; attempting render anyway")
-
-                rendered = cls._render_dxf_document_to_image(doc, output_width, output_height)
-                if rendered is not None:
-                    return rendered
-
-                logger.warning("Primary DXF renderer returned no image, using fallback renderer")
+                
+                # Render all layouts (Modelspace and Paperspace/Layouts)
+                # Filter out layouts that might be empty
+                for layout in doc.layouts:
+                    try:
+                        # Skip layouts without entities
+                        if len(layout) == 0:
+                            continue
+                            
+                        rendered = cls._render_dxf_document_to_image(doc, output_width, output_height, layout_name=layout.name)
+                        if rendered is not None:
+                            images.append(rendered)
+                    except Exception as e:
+                        logger.warning(f"Failed to render layout {layout.name}: {e}")
+                        
+                if not images:
+                    logger.warning("Primary DXF renderer returned no images, trying fallback for modelspace")
+                    fallback = cls._convert_dxf_to_image_fallback(dxf_bytes, output_width, output_height)
+                    if fallback is not None:
+                        images.append(fallback)
             finally:
                 os.unlink(tmp_path)
         except Exception as render_err:
-            logger.warning(f"Primary DXF render failed, using fallback renderer: {render_err}")
+            logger.warning(f"Primary DXF multi-render failed, using fallback renderer: {render_err}")
+            fallback = cls._convert_dxf_to_image_fallback(dxf_bytes, output_width, output_height)
+            if fallback is not None:
+                images.append(fallback)
 
-        return cls._convert_dxf_to_image_fallback(dxf_bytes, output_width, output_height)
+        return images
 
     @classmethod
     def _find_oda_converter(cls) -> str | None:
@@ -312,6 +328,15 @@ try {{
     $acad = New-Object -ComObject AutoCAD.Application
     $acad.Visible = $false
     $doc = $acad.Documents.Open($src)
+    
+    # Apply professional cleanup best-practices
+    # 1. Disable SHX hidden text comments (prevents overlapping text in PDF viewers)
+    $doc.SetVariable('PDFSHX', 0)
+    
+    # 2. Audit and fix drawing errors
+    $doc.SendCommand("_AUDIT Y `n")
+    
+    # 3. Save as DXF
     $doc.SaveAs($dst, 64)
     $doc.Close()
 }} finally {{
@@ -344,6 +369,93 @@ try {{
             return converted_file.read()
 
     @classmethod
+    def _convert_dwg_with_aspose(cls, dwg_bytes: bytes) -> bytes | None:
+        """Convert DWG to DXF using Aspose.CAD library (internal fallback)."""
+        try:
+            import aspose.cad as aspose_cad
+            from aspose.cad.imageoptions import DxfOptions
+
+            logger.info("Using Aspose.CAD for internal DWG conversion")
+            
+            input_stream = io.BytesIO(dwg_bytes)
+            output_stream = io.BytesIO()
+
+            with aspose_cad.Image.load(input_stream) as image:
+                # Save as DXF to the output stream
+                image.save(output_stream, DxfOptions())
+            
+            return output_stream.getvalue()
+        except Exception as e:
+            logger.warning(f"Aspose.CAD conversion failed: {e}")
+            return None
+
+    @classmethod
+    def _render_dwg_directly_to_image_aspose(
+        cls, 
+        dwg_bytes: bytes, 
+        output_width: int, 
+        output_height: int
+    ) -> list[np.ndarray]:
+        """Render all DWG layouts directly to PNG using Aspose.CAD (multi-page)."""
+        images = []
+        try:
+            import aspose.cad as aspose_cad
+            from aspose.cad.imageoptions import PngOptions, CadRasterizationOptions
+
+            logger.info("Directly rendering DWG layouts via Aspose.CAD")
+            
+            input_stream = io.BytesIO(dwg_bytes)
+
+            with aspose_cad.Image.load(input_stream) as image:
+                # Check if this is a CAD image with layouts
+                if hasattr(image, "layouts"):
+                    for layout in image.layouts:
+                        try:
+                            # We can render specific layouts or just all
+                            # For reliable multi-page, we render each layout individually
+                            output_stream = io.BytesIO()
+                            
+                            rasterization_options = CadRasterizationOptions()
+                            rasterization_options.page_width = float(output_width)
+                            rasterization_options.page_height = float(output_height)
+                            rasterization_options.layouts = [layout.layout_name]
+                            
+                            png_options = PngOptions()
+                            png_options.vector_rasterization_options = rasterization_options
+                            
+                            image.save(output_stream, png_options)
+                            
+                            nparr = np.frombuffer(output_stream.getvalue(), np.uint8)
+                            rendered = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+                            normalized = cls._normalize_image(rendered)
+                            if normalized is not None:
+                                images.append(normalized)
+                        except Exception as e:
+                            logger.warning(f"Failed to render layout {layout.layout_name} via Aspose: {e}")
+                else:
+                    # Single page fallback
+                    output_stream = io.BytesIO()
+                    rasterization_options = CadRasterizationOptions()
+                    rasterization_options.page_width = float(output_width)
+                    rasterization_options.page_height = float(output_height)
+                    
+                    png_options = PngOptions()
+                    png_options.vector_rasterization_options = rasterization_options
+                    
+                    image.save(output_stream, png_options)
+                    nparr = np.frombuffer(output_stream.getvalue(), np.uint8)
+                    rendered = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+                    normalized = cls._normalize_image(rendered)
+                    if normalized is not None:
+                        images.append(normalized)
+            
+            return images
+            
+        except Exception as e:
+            logger.warning(f"Multi-page Aspose rendering failed: {e}")
+            return []
+
+    @classmethod
     def convert_dwg_to_dxf_bytes(cls, dwg_bytes: bytes) -> bytes:
         """Convert DWG bytes to DXF bytes using local converters when available."""
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -365,50 +477,48 @@ try {{
             if converted:
                 return converted
 
+            # 3. Try Aspose.CAD (Internal Fallback)
+            converted = cls._convert_dwg_with_aspose(dwg_bytes)
+            if converted:
+                return converted
+
         raise DWGNotSupportedError(
-            "DWG conversion needs a local converter that DraftClear can call automatically.\n"
-            "Install one of these once, then DWG uploads will convert internally:\n"
-            f"  • ODA File Converter (recommended) and optionally set {cls.ODA_ENV_VAR}\n"
-            "  • AutoCAD desktop app with COM automation enabled\n"
-            "After that, upload the DWG directly and DraftClear will convert it to DXF automatically."
+            "DWG conversion failed. All internal converters (ODA, AutoCAD, Aspose) were unable to process this file.\n"
+            "Please ensure the file is not corrupted or try converting it to DXF manually using an online tool."
         )
 
     @classmethod
-    def convert_dwg_to_image(cls, dwg_bytes: bytes, output_width: int = 800, output_height: int = 600) -> np.ndarray:
+    def convert_dwg_to_image(cls, dwg_bytes: bytes, output_width: int = 800, output_height: int = 600) -> list[np.ndarray]:
         """
-        Convert DWG file bytes to numpy image array.
-
-        DWG is a proprietary Autodesk binary format that ezdxf cannot read directly.
-        This method automatically converts DWG -> DXF using any supported local
-        converter, then renders the DXF for downstream processing.
-
-        Args:
-            dwg_bytes: DWG file content as bytes
-            output_width: Output image width
-            output_height: Output image height
-
-        Returns:
-            numpy array (BGR) representing the rendered DWG, or raises DWGNotSupportedError
+        Convert DWG file bytes to a list of numpy image arrays.
         """
-        dxf_bytes = cls.convert_dwg_to_dxf_bytes(dwg_bytes)
-        return cls.convert_dxf_to_image(dxf_bytes, output_width, output_height)
+        # 1. Try direct high-performance multi-page rendering if Aspose is available
+        images = cls._render_dwg_directly_to_image_aspose(dwg_bytes, output_width, output_height)
+        if images:
+            return images
+
+        # 2. Fallback to DWG -> DXF -> Image pipeline (usually single page)
+        logger.info("Falling back to DWG -> DXF -> Image conversion pipeline")
+        try:
+            dxf_bytes = cls.convert_dwg_to_dxf_bytes(dwg_bytes)
+            return cls.convert_dxf_to_image(dxf_bytes, output_width, output_height)
+        except Exception as e:
+            logger.error(f"DWG to Image conversion failed: {e}")
+            return []
 
     @classmethod
-    def convert_cad_file(cls, file_bytes: bytes, filename: str) -> np.ndarray:
+    def convert_cad_file(cls, file_bytes: bytes, filename: str) -> list[np.ndarray]:
         """
-        Convert any CAD file to image.
+        Convert any CAD file to a list of images.
 
         Args:
             file_bytes: File content as bytes
             filename: Original filename to determine type
 
         Returns:
-            numpy array (BGR) representing the image
-
-        Raises:
-            DWGNotSupportedError: if a DWG file cannot be converted
+            list of numpy arrays (BGR) representing the images
         """
-        logger.info(f"Converting CAD file: {filename}")
+        logger.info(f"Converting CAD file (multi-page): {filename}")
 
         filename_lower = filename.lower()
 
@@ -418,4 +528,4 @@ try {{
             return cls.convert_dwg_to_image(file_bytes)
         else:
             logger.error(f"Unsupported CAD format: {filename}")
-            return None
+            return []

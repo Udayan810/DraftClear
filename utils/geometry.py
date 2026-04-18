@@ -39,7 +39,7 @@ def find_safe_zone(text_box: TextBox, geometry_boxes: List[Polygon], image_shape
     Returns:
         (new_x, new_y) coordinates
     """
-    h, w = image_shape
+    h, w = image_shape[:2]
     text_poly = create_box_polygon(text_box.x, text_box.y, text_box.w, text_box.h)
 
     # Combine all geometry boxes

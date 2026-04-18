@@ -2,6 +2,7 @@ import logging
 import numpy as np
 import cv2
 from utils.drawing_state import DrawingState, TextBox
+from utils.observability import observe
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +67,7 @@ class MaskingAgent:
             damaged = image.astype(float) * mask_inv + 255 * mask
             return damaged.astype(np.uint8)
 
+    @observe()
     def run(self, state: DrawingState) -> DrawingState:
         """
         Execute masking agent on drawing state

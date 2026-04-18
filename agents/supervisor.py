@@ -3,6 +3,7 @@ import requests
 import json
 from config.settings import OLLAMA_URL, OLLAMA_MODEL, OLLAMA_TIMEOUT, MAX_ITERATIONS
 from utils.drawing_state import DrawingState
+from utils.observability import observe
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +89,7 @@ class SupervisorAgent:
             # Default to continue if ambiguous
             return "continue"
 
+    @observe()
     def run(self, state: DrawingState) -> DrawingState:
         """
         Execute supervisor agent to make routing decision

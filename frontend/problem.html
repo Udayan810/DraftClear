@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Problem Statement - DraftClear</title>
+    <link rel="stylesheet" href="styles.css?v=5">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        if (!localStorage.getItem('dc_token')) {
+            window.location.replace('login.html');
+        }
+    </script>
+</head>
+<body class="problem-page">
+    <!-- Navigation Header -->
+    <nav class="navbar">
+        <div class="container">
+            <a href="index.html" class="navbar-brand" style="text-decoration: none;">
+                <i class="fas fa-cube"></i>
+                <span class="brand-text">DraftClear</span>
+                <span class="brand-subtitle">AI-Powered CAD Intelligence</span>
+            </a>
+            <div class="navbar-links">
+                <a href="index.html" class="nav-link">Dashboard</a>
+                <a href="problem.html" class="nav-link active">Problem Statement</a>
+                <a href="login.html" class="nav-link logout-link">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <section class="problem-section-standalone">
+        <div class="container">
+            <div class="section-badge centered">The Mission</div>
+            <h1 class="hero-title centered" style="color: var(--secondary); margin-bottom: 1rem;">Problem Statement</h1>
+            <p class="hero-subtitle centered" style="color: var(--text-secondary); max-width: 800px; margin: 0 auto 4rem auto;">
+                Engineering drawings have become more complex, but the tools we use to clean them haven't kept up. 
+                DraftClear was built to solve the systematic issues that plague CAD-to-PDF workflows.
+            </p>
+            
+            <div class="problem-solution-grid">
+                <!-- The Problem -->
+                <div class="problem-card">
+                    <div class="card-icon"><i class="fas fa-triangle-exclamation"></i></div>
+                    <h2 style="color: var(--error);">The Challenge</h2>
+                    <ul class="comparison-list problem-list">
+                        <li>
+                            <i class="fas fa-circle-xmark"></i>
+                            <span><strong>Text Overlapping:</strong> Dense engineering drawings often result in unreadable, stacked labels that require manual correction.</span>
+                        </li>
+                        <li>
+                            <i class="fas fa-circle-xmark"></i>
+                            <span><strong>SHX Font Ghosting:</strong> Legacy CAD fonts often create "phantom" text comments in PDF exports, creating messy artifacts.</span>
+                        </li>
+                        <li>
+                            <i class="fas fa-circle-xmark"></i>
+                            <span><strong>Duplicate Entities:</strong> Stacking of lines and text objects increases file size and confuses AI perception engines.</span>
+                        </li>
+                        <li>
+                            <i class="fas fa-circle-xmark"></i>
+                            <span><strong>Manual Iteration:</strong> Engineers waste up to 30% of their drawing time simply "making things look clean."</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- The Solution -->
+                <div class="solution-card">
+                    <div class="card-icon"><i class="fas fa-check-double"></i></div>
+                    <h2 style="color: var(--primary);">The DraftClear Solution</h2>
+                    <ul class="comparison-list solution-list">
+                        <li>
+                            <i class="fas fa-circle-check"></i>
+                            <span><strong>Autonomous Resolution:</strong> AI agents calculate optimal, collision-free placements in real-time using LangGraph.</span>
+                        </li>
+                        <li>
+                            <i class="fas fa-circle-check"></i>
+                            <span><strong>Deep Pipeline Integration:</strong> Automatic `PDFSHX` and `OVERKILL` logic solves ghosting at the source.</span>
+                        </li>
+                        <li>
+                            <i class="fas fa-circle-check"></i>
+                            <span><strong>Intelligent Thresholding:</strong> Otsu's algorithm allows the AI to see through colored boxes and complex gradients.</span>
+                        </li>
+                        <li>
+                            <i class="fas fa-circle-check"></i>
+                            <span><strong>Deduplication engine:</strong> "AI Overkill" filters out phantom objects before they ever reach the final report.</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="cta-container centered" style="margin-top: 5rem;">
+                <a href="index.html" class="btn btn-primary btn-xl">
+                    <i class="fas fa-rocket"></i> Try DraftClear Now
+                </a>
+            </div>
+
+            <!-- New: Key Technical Concepts Section -->
+            <div class="concepts-section" style="margin-top: 8rem; border-top: 1px solid var(--border); padding-top: 6rem;">
+                <div class="section-badge centered">Technical Dictionary</div>
+                <h2 class="section-title centered">Understanding the AI's Mission</h2>
+                <div class="concepts-grid">
+                    <!-- Concept 1 -->
+                    <div class="concept-card">
+                        <div class="concept-icon"><i class="fas fa-font"></i></div>
+                        <div class="concept-info">
+                            <h3>Text Labels</h3>
+                            <p>In CAD drawing terms, <strong>Text Labels</strong> are the intelligence of the document. They include measurements (e.g., "10mm"), equipment IDs ("Valve-01"), or descriptions. Without these labels, a technical drawing is just a set of lines without meaning. <strong>DraftClear</strong> treats these labels as the primary objects of interest, ensuring they remain readable and correctly associated with their geometry.</p>
+                        </div>
+                    </div>
+
+                    <!-- Concept 2 -->
+                    <div class="concept-card">
+                        <div class="concept-icon"><i class="fas fa-burst"></i></div>
+                        <div class="concept-info">
+                            <h3>Collisions</h3>
+                            <p>A <strong>Collision</strong> occurs when a Text Label overlaps with geometry (lines, shapes) or another label, making it unreadable. These are often caused by dense engineering layouts or automatic placement logic. <strong>DraftClear's</strong> AI identifies these incidents, "heals" the background geometry, and repositions the label in a mathematically calculated <strong>Safe Zone</strong> to ensure 100% legibility.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer style="margin-top: 5rem; padding: 3rem 0; border-top: 1px solid var(--border); text-align: center;">
+        <p style="font-size: 0.9rem; color: var(--text-secondary);">© 2026 DraftClear AI. Solving the geometry of the future.</p>
+    </footer>
+
+    <script>
+        // Placeholder for any specific logic
+    </script>
+</body>
+</html>
