@@ -20,6 +20,8 @@ from utils.drawing_state import DrawingState
 from pdf_compiler import PDFCompiler
 from cad_converter import CADConverter, DWGNotSupportedError
 from config.settings import OUTPUTS_DIR
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -84,6 +86,11 @@ class UserLogin(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
+
+class GoogleAuthRequest(BaseModel):
+    token: str
+
+GOOGLE_CLIENT_ID = "54971492714-d98cr61k8dpegc35ud7ahs1s2sblvrr8.apps.googleusercontent.com"
 
 
 def encode_image_to_base64(image_path: str) -> str:
@@ -212,6 +219,22 @@ async def register(user: UserCreate):
 @app.post("/api/auth/login", response_model=Token)
 async def login(request: Request):
     return {"access_token": "dummy_token", "token_type": "bearer"}
+
+@app.post("/api/auth/google", response_model=Token)
+async def google_login(request_data: GoogleAuthRequest):
+    try:
+        # Verify the token with Google servers
+        idinfo = id_token.verify_oauth2_token(
+            request_data.token, google_requests.Request(), GOOGLE_CLIENT_ID
+        )
+
+        user_email = idinfo['email']
+        
+        # TODO: Lookup user in database by user_email. Create if not exists.
+        
+        return {"access_token": "your_actual_jwt_token", "token_type": "bearer"}
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid Google token")
 
 @app.get("/api/auth/me")
 async def read_users_me():

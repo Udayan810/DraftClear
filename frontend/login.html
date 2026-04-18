@@ -9,6 +9,8 @@
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="login.css">
+    <!-- Google Identity Services -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <style>
         .error-msg { color: #ea4335; font-size: 0.85rem; margin-top: 0.5rem; text-align: center; display: none;}
     </style>
@@ -74,7 +76,7 @@
                     <button type="button" class="social-btn">
                         <i class="fab fa-microsoft"></i> Microsoft
                     </button>
-                    <button type="button" class="social-btn">
+                    <button type="button" class="social-btn" id="googleSignInBtn">
                         <i class="fab fa-google"></i> Google
                     </button>
                 </div>
@@ -87,6 +89,52 @@
     </div>
     
     <script>
+        window.addEventListener('load', function () {
+            // Initialize Google Identity Services
+            google.accounts.id.initialize({
+                client_id: "54971492714-d98cr61k8dpegc35ud7ahs1s2sblvrr8.apps.googleusercontent.com",
+                callback: handleGoogleResponse
+            });
+
+            // Attach to custom button
+            const googleBtn = document.getElementById('googleSignInBtn');
+            if (googleBtn) {
+                googleBtn.addEventListener('click', () => {
+                    google.accounts.id.prompt(); 
+                });
+            }
+        });
+
+        async function handleGoogleResponse(response) {
+            const errorMsg = document.getElementById('errorMsg');
+            const submitBtn = document.getElementById('submitBtn');
+            errorMsg.style.display = 'none';
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Signing in...';
+
+            try {
+                const res = await fetch('/api/auth/google', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: response.credential })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    localStorage.setItem('dc_token', data.access_token);
+                    window.location.href = 'index.html';
+                } else {
+                    const data = await res.json();
+                    throw new Error(data.detail || "Google Sign-In failed");
+                }
+            } catch (err) {
+                errorMsg.textContent = err.message;
+                errorMsg.style.display = 'block';
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<span>Sign In</span><i class="fas fa-arrow-right"></i>';
+            }
+        }
+
         // Simple password toggle logic
         document.getElementById('togglePassword').addEventListener('click', function() {
             const passwordInput = document.getElementById('password');

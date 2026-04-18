@@ -64,4 +64,5 @@ scikit-image
 imageio
 python-multipart
 
-
+# Authentication
+google-auth
