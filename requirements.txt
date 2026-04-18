@@ -62,5 +62,6 @@ minio
 # Optional: For better performance on specific operations
 scikit-image
 imageio
+python-multipart
 
 
