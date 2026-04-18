@@ -63,8 +63,4 @@ minio
 scikit-image
 imageio
 
-# Authentication & Security
-python-jose
-passlib
-bcrypt
-python-multipart
+

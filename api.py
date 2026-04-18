@@ -11,15 +11,10 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi import Request
 import cv2
 import numpy as np
 from pydantic import BaseModel, EmailStr
-
-from utils.auth import (
-    get_password_hash, verify_password, create_access_token,
-    get_user, save_users, get_users, get_current_user
-)
 from orchestrator import LangGraphOrchestrator
 from utils.drawing_state import DrawingState
 from pdf_compiler import PDFCompiler
@@ -208,40 +203,22 @@ async def health_check():
     }
 
 
-# Auth Endpoints
+# Auth Endpoints (Dummy)
 
 @app.post("/api/auth/register")
 async def register(user: UserCreate):
-    users = get_users()
-    if user.email in users:
-        raise HTTPException(status_code=400, detail="Email already registered")
-    
-    from datetime import datetime
-    new_user = {
-        "email": user.email,
-        "password": get_password_hash(user.password),
-        "role": "user",
-        "created_at": datetime.utcnow().isoformat()
-    }
-    users[user.email] = new_user
-    save_users(users)
     return {"message": "User registered successfully"}
 
 @app.post("/api/auth/login", response_model=Token)
-async def login(form_data: OAuth2PasswordRequestForm = Depends()):
-    user = get_user(form_data.username)
-    if not user or not verify_password(form_data.password, user["password"]):
-        raise HTTPException(status_code=401, detail="Incorrect email or password")
-    
-    access_token = create_access_token(data={"sub": user["email"], "role": user["role"]})
-    return {"access_token": access_token, "token_type": "bearer"}
+async def login(request: Request):
+    return {"access_token": "dummy_token", "token_type": "bearer"}
 
 @app.get("/api/auth/me")
-async def read_users_me(current_user: dict = Depends(get_current_user)):
-    return {"email": current_user["email"], "role": current_user["role"]}
+async def read_users_me():
+    return {"email": "dummy@draftclear.com", "role": "admin"}
 
 @app.post("/api/process", response_model=ProcessResponse)
-async def process_image(file: UploadFile = File(...), output_name: str = "processed", current_user: dict = Depends(get_current_user)):
+async def process_image(file: UploadFile = File(...), output_name: str = "processed"):
     """
     Process CAD image through DraftClear pipeline
 
