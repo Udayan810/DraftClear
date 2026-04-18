@@ -1,0 +1,16 @@
+version: "3.9"
+
+services:
+  draftclear:
+    build: .
+    image: draftclear:latest
+    container_name: draftclear
+    ports:
+      - "8000:8000"
+    volumes:
+      # Persist model weights and outputs across container rebuilds
+      - ./data:/app/data
+      - ./yolov10n.pt:/app/yolov10n.pt
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
