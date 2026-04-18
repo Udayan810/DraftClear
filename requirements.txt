@@ -62,3 +62,9 @@ minio
 # Optional: For better performance on specific operations
 scikit-image
 imageio
+
+# Authentication & Security
+python-jose
+passlib
+bcrypt
+python-multipart
