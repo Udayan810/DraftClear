@@ -29,6 +29,6 @@ COPY . .
 # Create runtime directories
 RUN mkdir -p data/outputs data/test_inputs
 
-EXPOSE 8000
+EXPOSE 7860
 
 CMD ["python", "run.py"]

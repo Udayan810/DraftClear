@@ -28,8 +28,8 @@ def main():
         from api import app
 
         logger.info("Launching FastAPI server...")
-        logger.info("Web Interface: http://localhost:8000")
-        logger.info("API Documentation: http://localhost:8000/docs")
+        logger.info("Web Interface: http://localhost:7860")
+        logger.info("API Documentation: http://localhost:7860/docs")
         logger.info("")
         logger.info("Press CTRL+C to stop the server")
         logger.info("=" * 60)
@@ -37,7 +37,7 @@ def main():
         uvicorn.run(
             app,
             host="0.0.0.0",
-            port=8000,
+            port=7860,
             log_level="info"
         )
 
