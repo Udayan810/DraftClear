@@ -35,7 +35,7 @@ redis
 timm
 
 # Utilities & Logging
-pydantic
+pydantic[email]
 loguru
 tqdm
 requests
