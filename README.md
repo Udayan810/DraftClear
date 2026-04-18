@@ -1,3 +1,13 @@
+---
+title: DraftClear
+emoji: 🚀
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # DraftClear - AI-Powered CAD Label Resolution System
 
 ![DraftClear](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)
