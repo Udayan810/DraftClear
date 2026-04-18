@@ -63,7 +63,7 @@ minio
 scikit-image
 imageio
 # Observability
-langfuse
+langfuse>=2.50.0
 # Authentication & Security
 python-jose
 passlib
