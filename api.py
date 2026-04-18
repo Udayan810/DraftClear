@@ -5,6 +5,7 @@ REST API for frontend integration
 import logging
 import io
 import base64
+import re
 from pathlib import Path
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
@@ -17,7 +18,7 @@ from pydantic import BaseModel
 from orchestrator import LangGraphOrchestrator
 from utils.drawing_state import DrawingState
 from pdf_compiler import PDFCompiler
-from cad_converter import CADConverter
+from cad_converter import CADConverter, DWGNotSupportedError
 from config.settings import OUTPUTS_DIR
 
 # Setup logging
@@ -63,6 +64,8 @@ class ProcessResponse(BaseModel):
     supervisor_decision: str
     original_image: str  # base64
     healed_image: str  # base64
+    original_image_url: str = ""
+    processed_image_url: str = ""
     pdf_url: str
     comparison_url: str
 
@@ -75,10 +78,96 @@ def encode_image_to_base64(image_path: str) -> str:
 
 def image_to_base64(image_array: np.ndarray) -> str:
     """Convert numpy array to base64"""
-    if image_array is None:
+    normalized = normalize_image_for_output(image_array)
+    if normalized is None:
         return ""
-    _, buffer = cv2.imencode('.png', image_array)
+    success, buffer = cv2.imencode('.png', normalized)
+    if not success:
+        return ""
     return base64.b64encode(buffer).decode('utf-8')
+
+
+def normalize_image_for_output(image_array: np.ndarray, fallback: np.ndarray | None = None) -> np.ndarray | None:
+    """Normalize output images into PNG-safe BGR uint8 arrays."""
+    candidate = image_array if image_array is not None else fallback
+    if candidate is None:
+        return None
+
+    normalized = np.asarray(candidate)
+    if normalized.size == 0:
+        return normalize_image_for_output(fallback) if candidate is not fallback else None
+
+    if normalized.dtype != np.uint8:
+        if np.issubdtype(normalized.dtype, np.floating):
+            scale = 255.0 if normalized.max(initial=0) <= 1.0 else 1.0
+            normalized = np.clip(normalized * scale, 0, 255).astype(np.uint8)
+        else:
+            normalized = np.clip(normalized, 0, 255).astype(np.uint8)
+
+    if normalized.ndim == 2:
+        normalized = cv2.cvtColor(normalized, cv2.COLOR_GRAY2BGR)
+    elif normalized.ndim == 3 and normalized.shape[2] == 4:
+        normalized = cv2.cvtColor(normalized, cv2.COLOR_BGRA2BGR)
+    elif normalized.ndim != 3 or normalized.shape[2] != 3:
+        if candidate is fallback:
+            return None
+        return normalize_image_for_output(fallback)
+
+    return np.ascontiguousarray(normalized)
+
+
+def sanitize_output_name(output_name: str) -> str:
+    """Convert arbitrary user-provided names into filesystem-safe artifact names."""
+    cleaned = re.sub(r'[^A-Za-z0-9._-]+', '_', output_name.strip())
+    cleaned = cleaned.strip('._-')
+    return cleaned or "processed"
+
+
+def save_preview_artifact(image_array: np.ndarray, output_name: str, suffix: str) -> str:
+    """Save a preview artifact and return its download URL."""
+    normalized = normalize_image_for_output(image_array)
+    if normalized is None:
+        raise HTTPException(status_code=500, detail=f"Failed to generate preview image: {suffix}")
+
+    artifact_path = OUTPUTS_DIR / f"{output_name}_{suffix}.png"
+    if not cv2.imwrite(str(artifact_path), normalized):
+        raise HTTPException(status_code=500, detail=f"Failed to save preview image: {suffix}")
+
+    return f"/api/download/image/{output_name}_{suffix}"
+
+
+def build_process_response(final_state: DrawingState, output_name: str, message: str) -> ProcessResponse:
+    """Build a stable API response with saved artifacts and reliable preview URLs."""
+    original_image = normalize_image_for_output(final_state.original_image)
+    processed_image = normalize_image_for_output(final_state.healed_geometry, fallback=original_image)
+
+    if original_image is None or processed_image is None:
+        raise HTTPException(status_code=500, detail="Processed image artifacts are unavailable")
+
+    pdf_path = OUTPUTS_DIR / f"{output_name}.pdf"
+    comparison_path = OUTPUTS_DIR / f"{output_name}_comparison.png"
+    if not pdf_path.exists():
+        raise HTTPException(status_code=500, detail="Failed to generate PDF report")
+    if not comparison_path.exists():
+        raise HTTPException(status_code=500, detail="Failed to generate comparison image")
+
+    original_image_url = save_preview_artifact(original_image, output_name, "original")
+    processed_image_url = save_preview_artifact(processed_image, output_name, "processed")
+
+    return ProcessResponse(
+        success=True,
+        message=message,
+        iterations=final_state.iteration,
+        text_labels=len(final_state.text_boxes),
+        collision_count=final_state.collision_count,
+        supervisor_decision=final_state.supervisor_decision,
+        original_image=image_to_base64(original_image),
+        healed_image=image_to_base64(processed_image),
+        original_image_url=original_image_url,
+        processed_image_url=processed_image_url,
+        pdf_url=f"/api/download/pdf/{output_name}",
+        comparison_url=f"/api/download/image/{output_name}_comparison",
+    )
 
 
 # API Endpoints
@@ -108,16 +197,27 @@ async def process_image(file: UploadFile = File(...), output_name: str = "proces
     logger.info(f"Processing file: {file.filename}")
 
     try:
+        safe_output_name = sanitize_output_name(output_name)
+
         # Read uploaded file
         contents = await file.read()
 
         # Check if it's a CAD file
         if CADConverter.is_cad_file(file.filename):
             logger.info(f"Detected CAD file: {file.filename}")
-            image = CADConverter.convert_cad_file(contents, file.filename)
+            try:
+                image = CADConverter.convert_cad_file(contents, file.filename)
+            except DWGNotSupportedError as dwg_err:
+                raise HTTPException(
+                    status_code=400,
+                    detail=str(dwg_err)
+                )
 
             if image is None:
-                raise HTTPException(status_code=400, detail="Failed to convert CAD file. Please ensure it's a valid DXF or DWG file.")
+                raise HTTPException(
+                    status_code=400,
+                    detail="Failed to convert DXF file. Please ensure it is a valid DXF file."
+                )
         else:
             # It's an image file
             nparr = np.frombuffer(contents, np.uint8)
@@ -134,22 +234,10 @@ async def process_image(file: UploadFile = File(...), output_name: str = "proces
 
         # Compile PDF
         pdf_compiler = PDFCompiler()
-        pdf_path = pdf_compiler.compile_pdf(final_state, output_name)
-        comparison_path = pdf_compiler.create_comparison_report(final_state, output_name)
+        pdf_compiler.compile_pdf(final_state, safe_output_name)
+        pdf_compiler.create_comparison_report(final_state, safe_output_name)
 
-        # Prepare response
-        return ProcessResponse(
-            success=True,
-            message="File processed successfully",
-            iterations=final_state.iteration,
-            text_labels=len(final_state.text_boxes),
-            collision_count=final_state.collision_count,
-            supervisor_decision=final_state.supervisor_decision,
-            original_image=image_to_base64(final_state.original_image),
-            healed_image=image_to_base64(final_state.healed_geometry),
-            pdf_url=f"/api/download/pdf/{output_name}",
-            comparison_url=f"/api/download/image/{output_name}_comparison"
-        )
+        return build_process_response(final_state, safe_output_name, "File processed successfully")
 
     except HTTPException:
         raise
@@ -223,6 +311,8 @@ async def process_base64_image(request: ProcessRequest):
     logger.info(f"Processing base64 image: {request.output_name}")
 
     try:
+        safe_output_name = sanitize_output_name(request.output_name)
+
         # Decode base64
         img_data = base64.b64decode(request.image_base64)
         nparr = np.frombuffer(img_data, np.uint8)
@@ -239,21 +329,13 @@ async def process_base64_image(request: ProcessRequest):
 
         # Compile PDF
         pdf_compiler = PDFCompiler()
-        pdf_path = pdf_compiler.compile_pdf(final_state, request.output_name)
+        pdf_compiler.compile_pdf(final_state, safe_output_name)
+        pdf_compiler.create_comparison_report(final_state, safe_output_name)
 
-        return ProcessResponse(
-            success=True,
-            message="Base64 image processed successfully",
-            iterations=final_state.iteration,
-            text_labels=len(final_state.text_boxes),
-            collision_count=final_state.collision_count,
-            supervisor_decision=final_state.supervisor_decision,
-            original_image=image_to_base64(final_state.original_image),
-            healed_image=image_to_base64(final_state.healed_geometry),
-            pdf_url=f"/api/download/pdf/{request.output_name}",
-            comparison_url=f"/api/download/image/{request.output_name}_comparison"
-        )
+        return build_process_response(final_state, safe_output_name, "Base64 image processed successfully")
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Base64 processing error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -261,6 +343,11 @@ async def process_base64_image(request: ProcessRequest):
 
 # Serve static frontend files
 frontend_path = Path(__file__).parent / "frontend"
+
+@app.get("/")
+async def read_index():
+    return FileResponse(frontend_path / "index.html")
+
 if frontend_path.exists():
     app.mount("/", StaticFiles(directory=str(frontend_path), html=True), name="static")
 

@@ -16,6 +16,11 @@ const processButton = document.getElementById('processButton');
 const progressSection = document.getElementById('progressSection');
 const resultsSection = document.getElementById('resultsSection');
 const newProcessButton = document.getElementById('newProcessButton');
+const originalResultImage = document.getElementById('originalImage');
+const processedResultImage = document.getElementById('processedImage');
+const downloadPdfButton = document.getElementById('downloadPdf');
+const downloadComparisonButton = document.getElementById('downloadComparison');
+const logoutButton = document.getElementById('logoutButton');
 
 // Event Listeners
 uploadArea.addEventListener('dragover', handleDragOver);
@@ -26,12 +31,20 @@ fileInput.addEventListener('change', handleFileSelect);
 clearButton.addEventListener('click', clearFile);
 processButton.addEventListener('click', processImage);
 newProcessButton.addEventListener('click', resetUI);
+downloadPdfButton.addEventListener('click', handleDownloadClick);
+downloadComparisonButton.addEventListener('click', handleDownloadClick);
+if (logoutButton) {
+    logoutButton.addEventListener('click', (e) => {
+        // Any logout logic (e.g. clearing session) can go here
+        console.log('User logging out...');
+    });
+}
 
 // Drag and Drop
 function handleDragOver(e) {
     e.preventDefault();
-    uploadArea.style.borderColor = '#E67E22';
-    uploadArea.style.backgroundColor = 'rgba(230, 126, 34, 0.1)';
+    uploadArea.style.borderColor = '#00338D';
+    uploadArea.style.backgroundColor = 'rgba(0, 51, 141, 0.1)';
 }
 
 function handleDrop(e) {
@@ -70,21 +83,96 @@ function handleFileSelect() {
 }
 
 function displayPreview(file) {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        previewImage.src = e.target.result;
-        previewSection.classList.remove('hidden');
-        uploadArea.style.display = 'none';
-    };
-    reader.readAsDataURL(file);
+    const isCAD = ['.dwg', '.dxf'].some(ext => file.name.toLowerCase().endsWith(ext));
+
+    if (isCAD) {
+        // CAD files can't be rendered as images in the browser — show a placeholder
+        previewImage.style.display = 'none';
+
+        // Remove any existing CAD placeholder
+        const existing = document.getElementById('cadPlaceholder');
+        if (existing) existing.remove();
+
+        const isDWG = file.name.toLowerCase().endsWith('.dwg');
+
+        const placeholder = document.createElement('div');
+        placeholder.id = 'cadPlaceholder';
+
+        if (isDWG) {
+            // DWG: blue caution card — file IS accepted
+            placeholder.style.cssText = `
+                display: flex; flex-direction: column; align-items: center;
+                justify-content: center; gap: 10px; padding: 28px 20px;
+                background: rgba(0,51,141,0.06); border: 2px dashed #00338D;
+                border-radius: 12px; margin: 12px 0; color: #00338D;
+            `;
+            placeholder.innerHTML = `
+                <i class="fas fa-drafting-compass" style="font-size: 2.6rem; color:#00338D;"></i>
+                <div style="font-weight: 700; font-size: 1rem; color:#00338D;">DWG File Loaded</div>
+                <div style="font-size: 0.82rem; color: #555; text-align:center; line-height:1.7;">
+                    <strong>${file.name}</strong> &nbsp;·&nbsp; ${(file.size / 1024).toFixed(1)} KB &nbsp;·&nbsp; DWG format<br>
+                    <span style="color:#00338D; font-weight:600;">✓ File accepted — click Process Drawing to continue</span><br>
+                    <span style="font-size:0.78rem; color:#888;">
+                        Note: If processing fails, convert to DXF first using
+                        <a href="https://www.online-convert.com/" target="_blank" style="color:#00338D;">an online converter</a>
+                    </span>
+                </div>
+            `;
+        } else {
+            // DXF: fully supported
+            placeholder.style.cssText = `
+                display: flex; flex-direction: column; align-items: center;
+                justify-content: center; gap: 12px; padding: 40px 20px;
+                background: rgba(39,174,96,0.07); border: 2px dashed #27ae60;
+                border-radius: 12px; margin: 12px 0; color: #27ae60;
+            `;
+            placeholder.innerHTML = `
+                <i class="fas fa-drafting-compass" style="font-size: 3rem;"></i>
+                <div style="font-weight: 600; font-size: 1rem;">${file.name}</div>
+                <div style="font-size: 0.85rem; color: #888; text-align:center;">
+                    DXF file ready for processing<br>
+                    <span style="font-size:0.8rem;">${(file.size / 1024).toFixed(1)} KB &nbsp;·&nbsp; DXF format</span>
+                </div>
+            `;
+        }
+
+        // Insert placeholder inside the preview section
+        const previewContainer = previewSection.querySelector('.preview-header');
+        previewContainer.insertAdjacentElement('afterend', placeholder);
+    } else {
+        // It's an image — render it normally
+        const existing = document.getElementById('cadPlaceholder');
+        if (existing) existing.remove();
+        previewImage.style.display = '';
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            previewImage.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    previewSection.classList.remove('hidden');
+    uploadArea.style.display = 'none';
 }
 
 function clearFile() {
     selectedFile = null;
     fileInput.value = '';
+
+    // Remove CAD placeholder if present
+    const cadPlaceholder = document.getElementById('cadPlaceholder');
+    if (cadPlaceholder) cadPlaceholder.remove();
+    previewImage.style.display = '';
+    previewImage.src = '';
+
     previewSection.classList.add('hidden');
     uploadArea.style.display = '';
     processButton.disabled = true;
+    originalResultImage.src = '';
+    processedResultImage.src = '';
+    setDownloadTarget(downloadPdfButton, '', '');
+    setDownloadTarget(downloadComparisonButton, '', '');
 }
 
 // Process Image
@@ -118,7 +206,9 @@ async function processImage() {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.detail || 'Processing failed');
+            // Format multi-line server error messages (e.g. DWG instructions)
+            const detail = error.detail || 'Processing failed';
+            throw new Error(detail);
         }
 
         const result = await response.json();
@@ -161,27 +251,117 @@ function displayResults(result) {
     document.getElementById('metricDecision').textContent = result.supervisor_decision === 'compile' ? '✓ Complete' : '⚠ In Progress';
 
     // Display images
-    if (result.original_image) {
-        document.getElementById('originalImage').src = `data:image/png;base64,${result.original_image}`;
-    }
-    if (result.healed_image) {
-        document.getElementById('processedImage').src = `data:image/png;base64,${result.healed_image}`;
-    }
+    const cacheBuster = `ts=${Date.now()}`;
+    const originalImageUrl = result.original_image_url ? `${result.original_image_url}?${cacheBuster}` : '';
+    const processedImageUrl = result.processed_image_url ? `${result.processed_image_url}?${cacheBuster}` : '';
+    const originalBase64Url = result.original_image ? `data:image/png;base64,${result.original_image}` : '';
+    const processedBase64Url = result.healed_image ? `data:image/png;base64,${result.healed_image}` : '';
+
+    setResultImage(originalResultImage, originalImageUrl || originalBase64Url, '');
+    setResultImage(processedResultImage, processedImageUrl || processedBase64Url, originalImageUrl || originalBase64Url);
 
     // Update download links
+    setDownloadTarget(downloadPdfButton, '', '');
+    setDownloadTarget(downloadComparisonButton, '', '');
+
     if (result.pdf_url) {
-        document.getElementById('downloadPdf').href = result.pdf_url;
-        document.getElementById('downloadPdf').download = `${currentProcessName}.pdf`;
+        setDownloadTarget(downloadPdfButton, result.pdf_url, `${currentProcessName}.pdf`);
     }
     if (result.comparison_url) {
-        document.getElementById('downloadComparison').href = result.comparison_url;
-        document.getElementById('downloadComparison').download = `${currentProcessName}_comparison.png`;
+        setDownloadTarget(downloadComparisonButton, result.comparison_url, `${currentProcessName}_comparison.png`);
     }
 
     // Scroll to results
     setTimeout(() => {
         resultsSection.scrollIntoView({ behavior: 'smooth' });
     }, 500);
+}
+
+function setResultImage(imageElement, primarySource, fallbackSource) {
+    imageElement.onerror = null;
+
+    if (!primarySource && !fallbackSource) {
+        imageElement.src = '';
+        return;
+    }
+
+    if (fallbackSource && primarySource !== fallbackSource) {
+        imageElement.onerror = () => {
+            imageElement.onerror = null;
+            imageElement.src = fallbackSource;
+        };
+    }
+
+    imageElement.src = primarySource || fallbackSource;
+}
+
+function setDownloadTarget(button, url, fallbackFilename) {
+    button.dataset.downloadUrl = url || '';
+    button.dataset.filename = fallbackFilename || '';
+    button.href = url || '#';
+
+    if (url) {
+        button.classList.remove('disabled');
+        button.setAttribute('aria-disabled', 'false');
+    } else {
+        button.classList.add('disabled');
+        button.setAttribute('aria-disabled', 'true');
+    }
+}
+
+function extractFilename(contentDisposition, fallbackFilename) {
+    if (!contentDisposition) {
+        return fallbackFilename;
+    }
+
+    const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+    if (utf8Match) {
+        return decodeURIComponent(utf8Match[1]);
+    }
+
+    const basicMatch = contentDisposition.match(/filename="?([^";]+)"?/i);
+    return basicMatch ? basicMatch[1] : fallbackFilename;
+}
+
+async function downloadFile(url, fallbackFilename) {
+    const response = await fetch(url);
+    if (!response.ok) {
+        let errorMessage = 'Download failed';
+        try {
+            const error = await response.json();
+            errorMessage = error.detail || errorMessage;
+        } catch {
+            // Ignore JSON parse errors and keep the generic message.
+        }
+        throw new Error(errorMessage);
+    }
+
+    const blob = await response.blob();
+    const objectUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = objectUrl;
+    link.download = extractFilename(response.headers.get('content-disposition'), fallbackFilename);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => window.URL.revokeObjectURL(objectUrl), 1000);
+}
+
+async function handleDownloadClick(event) {
+    event.preventDefault();
+
+    const button = event.currentTarget;
+    const url = button.dataset.downloadUrl;
+    if (!url) {
+        showError('This file is not ready to download yet.');
+        return;
+    }
+
+    try {
+        await downloadFile(url, button.dataset.filename);
+    } catch (error) {
+        showError(`Download failed: ${error.message}`);
+    }
 }
 
 // Notifications
@@ -216,6 +396,8 @@ function resetUI() {
 
 // Health check on load
 document.addEventListener('DOMContentLoaded', () => {
+    setDownloadTarget(downloadPdfButton, '', '');
+    setDownloadTarget(downloadComparisonButton, '', '');
     checkApiHealth();
 });
 
@@ -230,11 +412,24 @@ async function checkApiHealth() {
     }
 }
 
+
 // Smooth scrolling for navigation links
 document.querySelectorAll('a[href^="#"]').forEach(anchor => {
     anchor.addEventListener('click', function (e) {
+
+        const href = this.getAttribute('href');
+
+        if (!href || href === '#') {
+            e.preventDefault();
+            return;
+        }
+
+        if (!href.startsWith('#')) {
+            return;
+        }
+
         e.preventDefault();
-        const target = document.querySelector(this.getAttribute('href'));
+        const target = document.querySelector(href);
         if (target) {
             target.scrollIntoView({
                 behavior: 'smooth',

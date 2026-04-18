@@ -115,15 +115,33 @@ class LangGraphOrchestrator:
                 # Run graph
                 result = self.graph.invoke(state)
 
-                # Extract DrawingState from result if it's a dict
-                if isinstance(result, dict):
-                    # LangGraph returns the final state from the graph
-                    # The result should contain the DrawingState or its attributes
-                    if isinstance(result, DrawingState):
-                        return result
-                    else:
-                        # If it's a dict, try to convert back to DrawingState
-                        logger.warning("LangGraph returned dict instead of DrawingState, using fallback")
+                # LangGraph returns the final state — handle both dict and DrawingState
+                if isinstance(result, DrawingState):
+                    return result
+                elif isinstance(result, dict):
+                    # Reconstruct DrawingState from the dict LangGraph returns
+                    logger.info("LangGraph returned dict — reconstructing DrawingState")
+                    try:
+                        reconstructed = DrawingState(
+                            iteration=result.get('iteration', state.iteration),
+                            original_image=result.get('original_image', state.original_image),
+                            text_boxes=result.get('text_boxes', state.text_boxes),
+                            detected_geometry=result.get('detected_geometry', state.detected_geometry),
+                            mask_matrix=result.get('mask_matrix', state.mask_matrix),
+                            damaged_geometry=result.get('damaged_geometry', state.damaged_geometry),
+                            new_coordinates=result.get('new_coordinates', state.new_coordinates),
+                            healed_geometry=result.get('healed_geometry', state.healed_geometry),
+                            collision_count=result.get('collision_count', state.collision_count),
+                            collision_details=result.get('collision_details', state.collision_details),
+                            supervisor_decision=result.get('supervisor_decision', state.supervisor_decision),
+                            supervisor_reasoning=result.get('supervisor_reasoning', state.supervisor_reasoning),
+                        )
+                        # Ensure healed_geometry is always set
+                        if reconstructed.healed_geometry is None and reconstructed.original_image is not None:
+                            reconstructed.healed_geometry = reconstructed.original_image.copy()
+                        return reconstructed
+                    except Exception as recon_err:
+                        logger.warning(f"DrawingState reconstruction failed: {recon_err}, using fallback")
                         return self._run_simple_orchestration(state)
                 else:
                     return result
@@ -151,7 +169,9 @@ class LangGraphOrchestrator:
             # Execute pipeline
             current_state = self.perception.run(current_state)
             if not current_state.text_boxes:
-                logger.warning("No text detected, ending pipeline")
+                logger.warning("No text detected, ending pipeline early")
+                # Still run healing so healed_geometry is always populated
+                current_state = self.healing.run(current_state)
                 break
 
             current_state = self.masking.run(current_state)
@@ -163,5 +183,10 @@ class LangGraphOrchestrator:
             if current_state.supervisor_decision == "compile":
                 logger.info("Supervisor approved for compilation")
                 break
+
+        # Final safety net — healed_geometry must never be None
+        if current_state.healed_geometry is None and current_state.original_image is not None:
+            logger.warning("healed_geometry still None after pipeline — using original image")
+            current_state.healed_geometry = current_state.original_image.copy()
 
         return current_state

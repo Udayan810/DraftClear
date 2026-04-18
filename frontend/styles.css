@@ -2,23 +2,23 @@
 
 :root {
     /* KPMG-inspired Color Palette */
-    --primary: #E67E22;           /* Orange/Gold */
-    --primary-dark: #D65C0F;      /* Darker Orange */
-    --primary-light: #F39C12;     /* Light Orange */
-    --secondary: #2C3E50;         /* Dark Blue-Gray */
-    --secondary-light: #34495E;   /* Lighter Dark Blue */
-    --accent: #3498DB;            /* Blue */
-    --success: #27AE60;           /* Green */
-    --error: #E74C3C;             /* Red */
-    --bg-primary: #FFFFFF;        /* White */
-    --bg-secondary: #F8F9FA;      /* Light Gray */
-    --bg-tertiary: #ECF0F1;       /* Lighter Gray */
-    --text-primary: #2C3E50;      /* Dark Text */
-    --text-secondary: #7F8C8D;    /* Gray Text */
-    --border: #BDC3C7;            /* Light Border */
-    --shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.15);
-    --transition: all 0.3s ease;
+    --primary: #00338D;           /* KPMG Royal Blue */
+    --primary-dark: #001F54;      /* Deep Navy */
+    --primary-light: #2B59C3;     /* Light Royal Blue */
+    --secondary: #00153D;         /* Darkest Blue */
+    --secondary-light: #000C24;   /* Midnight Navy */
+    --accent: #487FFF;            /* Vivid Accent Blue */
+    --success: #27AE60;           /* Green (kept for status) */
+    --error: #E74C3C;             /* Red (kept for error) */
+    --bg-primary: #FFFFFF;        /* White background */
+    --bg-secondary: #F4F7FC;      /* Light Bluish Gray */
+    --bg-tertiary: #E1E8F4;       /* Subtle Blue Grid */
+    --text-primary: #00153D;      /* Darkest Navy Text */
+    --text-secondary: #5D6D7E;    /* Slate Gray Text */
+    --border: #D5DBE1;            /* Soft Border */
+    --shadow: 0 4px 12px rgba(0, 51, 141, 0.08);
+    --shadow-lg: 0 8px 24px rgba(0, 51, 141, 0.12);
+    --transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
 }
 
 * {
@@ -113,12 +113,34 @@ p {
     color: var(--primary);
 }
 
+.logout-link {
+    color: var(--error) !important;
+}
+
+.logout-link:hover {
+    color: var(--primary-light) !important;
+    text-decoration: underline;
+}
+
 /* Hero Section */
 .hero {
-    background: linear-gradient(135deg, var(--secondary) 0%, var(--secondary-light) 100%);
+    background: linear-gradient(135deg, var(--secondary) 0%, var(--primary) 100%);
     color: white;
-    padding: 4rem 0;
+    padding: 5rem 0;
     text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.hero::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: url('data:image/svg+xml,<svg width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><circle cx="1" cy="1" r="1" fill="rgba(255,255,255,0.05)"/></svg>');
+    opacity: 0.5;
 }
 
 .hero-content {
@@ -216,7 +238,7 @@ p {
 
 .upload-area:hover {
     border-color: var(--primary);
-    background-color: rgba(230, 126, 34, 0.05);
+    background-color: rgba(0, 51, 141, 0.05);
 }
 
 .upload-icon {
@@ -460,7 +482,7 @@ p {
 
 .progress-bar {
     height: 100%;
-    background: linear-gradient(90deg, var(--primary), var(--primary-light));
+    background: linear-gradient(90deg, var(--primary), var(--accent));
     width: 0%;
     animation: progress 2s ease-in-out infinite;
 }
@@ -636,6 +658,12 @@ p {
 .download-buttons a {
     text-decoration: none;
     color: white;
+}
+
+.download-buttons a.disabled {
+    pointer-events: none;
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 /* Features Section */

@@ -21,6 +21,35 @@ class PDFCompiler:
     """Compiles final PDF from DraftClear pipeline output"""
 
     @staticmethod
+    def _normalize_image(image: np.ndarray, fallback: np.ndarray | None = None) -> np.ndarray | None:
+        """Normalize any pipeline image into a BGR uint8 array."""
+        candidate = image if image is not None else fallback
+        if candidate is None:
+            return None
+
+        normalized = np.asarray(candidate)
+        if normalized.size == 0:
+            return PDFCompiler._normalize_image(fallback) if candidate is not fallback else None
+
+        if normalized.dtype != np.uint8:
+            if np.issubdtype(normalized.dtype, np.floating):
+                scale = 255.0 if normalized.max(initial=0) <= 1.0 else 1.0
+                normalized = np.clip(normalized * scale, 0, 255).astype(np.uint8)
+            else:
+                normalized = np.clip(normalized, 0, 255).astype(np.uint8)
+
+        if normalized.ndim == 2:
+            normalized = cv2.cvtColor(normalized, cv2.COLOR_GRAY2BGR)
+        elif normalized.ndim == 3 and normalized.shape[2] == 4:
+            normalized = cv2.cvtColor(normalized, cv2.COLOR_BGRA2BGR)
+        elif normalized.ndim != 3 or normalized.shape[2] != 3:
+            if candidate is fallback:
+                return None
+            return PDFCompiler._normalize_image(fallback)
+
+        return np.ascontiguousarray(normalized)
+
+    @staticmethod
     def compile_pdf(state: DrawingState, output_name: str = "output") -> str:
         """
         Compile final PDF with healed geometry and repositioned text
@@ -44,14 +73,26 @@ class PDFCompiler:
             width, height = letter
 
             # Draw healed geometry image (fallback to original if healed is None)
-            image_to_draw = state.healed_geometry if state.healed_geometry is not None else state.original_image
+            image_to_draw = PDFCompiler._normalize_image(state.healed_geometry, fallback=state.original_image)
             if image_to_draw is not None:
                 geometry_img_path = OUTPUTS_DIR / f"{output_name}_geometry_temp.png"
-                cv2.imwrite(str(geometry_img_path), image_to_draw)
+                if not cv2.imwrite(str(geometry_img_path), image_to_draw):
+                    raise ValueError("Failed to write temporary geometry image for PDF compilation")
 
-                # Scale image to fit page
+                # Scale image to fit page while preserving aspect ratio.
+                img_h, img_w = image_to_draw.shape[:2]
+                max_width = width - 100
+                max_height = 400
+                scale = min(max_width / img_w, max_height / img_h)
+                draw_width = img_w * scale
+                draw_height = img_h * scale
+                draw_x = (width - draw_width) / 2
+                draw_y = height - 100 - draw_height
+
                 c.drawString(50, height - 50, f"DraftClear - Processed Drawing ({output_name})")
-                c.drawImage(str(geometry_img_path), 50, height - 500, width=500, height=400)
+                c.drawImage(str(geometry_img_path), draw_x, draw_y, width=draw_width, height=draw_height)
+                if geometry_img_path.exists():
+                    geometry_img_path.unlink()
             else:
                 c.drawString(50, height - 50, "DraftClear - No geometry available to display")
 
@@ -102,8 +143,8 @@ class PDFCompiler:
 
         try:
             # Load images (fallback to original if healed is None)
-            original = state.original_image
-            healed = state.healed_geometry if state.healed_geometry is not None else state.original_image
+            original = PDFCompiler._normalize_image(state.original_image)
+            healed = PDFCompiler._normalize_image(state.healed_geometry, fallback=original)
 
             if original is None:
                 logger.warning("Missing original image for comparison")
@@ -114,6 +155,8 @@ class PDFCompiler:
             comparison = np.zeros((h, w * 2 + 20, 3), dtype=np.uint8)
             comparison[:, :w] = original
             if healed is not None:
+                if healed.shape[:2] != original.shape[:2]:
+                    healed = cv2.resize(healed, (w, h), interpolation=cv2.INTER_AREA)
                 comparison[:, w+20:] = healed
             else:
                 # Fill right side with gray if healed is still None
