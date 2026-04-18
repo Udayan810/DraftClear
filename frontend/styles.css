@@ -177,12 +177,15 @@ p {
 .stat-value {
     font-size: 2rem;
     font-weight: 700;
-    color: var(--primary);
+    color: #FFFFFF;
+    text-shadow: 0 0 12px rgba(255, 255, 255, 0.6);
 }
 
 .stat-label {
-    color: rgba(255, 255, 255, 0.8);
+    color: #FFFFFF;
     margin-top: 0.5rem;
+    font-weight: 500;
+    text-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
 }
 
 /* Main Container */
