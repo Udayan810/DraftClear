@@ -62,8 +62,7 @@ minio
 # Optional: For better performance on specific operations
 scikit-image
 imageio
-# Observability
-langfuse>=2.50.0
+
 # Authentication & Security
 python-jose
 passlib

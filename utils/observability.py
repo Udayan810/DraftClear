@@ -1,41 +1,32 @@
 """
-Langfuse Observability Utility
-Provides the @observe() decorator for tracing DraftClear agents
+Observability Utility (Disabled)
+Langfuse dependencies have been fully removed. This provides dummy decorators.
 """
-import os
 import logging
-from langfuse.decorators import observe, langfuse_context
+from functools import wraps
 
 logger = logging.getLogger(__name__)
+logger.info("Observability is disabled. Langfuse has been removed.")
 
-# Verify Langfuse configuration
-public_key = os.environ.get("LANGFUSE_PUBLIC_KEY")
-secret_key = os.environ.get("LANGFUSE_SECRET_KEY")
-base_url = os.environ.get("LANGFUSE_BASE_URL", "https://cloud.langfuse.com")
+class DummyContext:
+    def update_current_trace(self, *args, **kwargs):
+        pass
 
-if not public_key or not secret_key:
-    logger.warning("Langfuse credentials missing in environment. Observability will be disabled.")
-else:
-    logger.info(f"Langfuse initialized with base URL: {base_url}")
+langfuse_context = DummyContext()
+
+def observe(*args, **kwargs):
+    """Dummy decorator that does nothing"""
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*f_args, **f_kwargs):
+            return func(*f_args, **f_kwargs)
+        return wrapper
+    if len(args) == 1 and callable(args[0]):
+        return decorator(args[0])
+    return decorator
 
 def update_trace_metadata(filename: str = None, iteration: int = None, page: int = None):
-    """Update current trace with metadata for better filtering in Langfuse"""
-    try:
-        if filename:
-            langfuse_context.update_current_trace(
-                name=f"Process: {filename}",
-                metadata={"filename": filename}
-            )
-        if iteration is not None:
-            langfuse_context.update_current_trace(
-                metadata={"max_iterations": iteration}
-            )
-        if page is not None:
-            langfuse_context.update_current_trace(
-                metadata={"page_number": page}
-            )
-    except Exception as e:
-        logger.debug(f"Failed to update Langfuse metadata: {e}")
+    """Dummy function"""
+    pass
 
-# Export the decorator
 __all__ = ["observe", "langfuse_context", "update_trace_metadata"]
