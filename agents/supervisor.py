@@ -115,22 +115,30 @@ class SupervisorAgent:
         if self.is_available:
             logger.info("Using Ollama for intelligent supervision")
 
-            prompt = f"""You are a CAD drawing repair supervisor. Analyze this situation and decide whether to continue repositioning text labels or if the drawing is ready for compilation.
+            prompt = f"""You are a professional CAD engineering supervisor. Analyze this drawing process and provide two things:
+1. DECISION: "COMPILE" if collision_count is 0 or no further progress is possible, otherwise "CONTINUE".
+2. SUMMARY: A brief, professional description of the improvements made to the drawing, the types of conflicts resolved, and the final quality status.
 
-Current State:
+Current Metrics:
 - Iteration: {state.iteration}
-- Collision count: {state.collision_count}
-- Total text boxes: {len(state.text_boxes)}
+- Collisions Remaining: {state.collision_count}
+- Total Labels: {len(state.text_boxes)}
 
-Decision: If collision_count is 0, respond "COMPILE". Otherwise respond "CONTINUE".
-Be brief."""
+Format your response as:
+DECISION: [COMPILE/CONTINUE]
+SUMMARY: [Your descriptive summary]"""
 
             response = self.call_ollama(prompt)
             logger.info(f"Ollama response: {response}")
 
             decision = self.parse_decision(response)
             new_state.supervisor_decision = decision
-            new_state.supervisor_reasoning = response[:100]  # Store first 100 chars
+            
+            # Extract summary from response if possible, else use full response
+            if "SUMMARY:" in response:
+                new_state.supervisor_reasoning = response.split("SUMMARY:", 1)[1].strip()
+            else:
+                new_state.supervisor_reasoning = response.strip()
 
         else:
             # Fallback: simple logic without LLM

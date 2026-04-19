@@ -35,10 +35,11 @@ def main():
         logger.info("=" * 60)
 
         uvicorn.run(
-            app,
+            "api:app",
             host="0.0.0.0",
             port=7860,
-            log_level="info"
+            log_level="info",
+            reload=True
         )
 
     except KeyboardInterrupt:

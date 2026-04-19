@@ -22,6 +22,10 @@ from cad_converter import CADConverter, DWGNotSupportedError
 from config.settings import OUTPUTS_DIR
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
+from agents.ocr_agent import OCRAgent
+from langchain_community.llms import Ollama
+from langchain_core.callbacks.manager import CallbackManager
+from langchain_core.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -46,9 +50,10 @@ app.add_middleware(
 # Initialize orchestrator
 try:
     orchestrator = LangGraphOrchestrator()
-    logger.info("Orchestrator initialized")
+    ocr_agent = OCRAgent()
+    logger.info("Orchestrator and OCR Agent initialized")
 except Exception as e:
-    logger.error(f"Failed to initialize orchestrator: {e}")
+    logger.error(f"Failed to initialize core agents: {e}")
 
 # Pydantic models
 class ProcessRequest(BaseModel):
@@ -89,6 +94,14 @@ class Token(BaseModel):
 
 class GoogleAuthRequest(BaseModel):
     token: str
+
+class OCRRequest(BaseModel):
+    image_base64: str
+
+class ChatRequest(BaseModel):
+    message: str
+    context: str
+    model: str = "llama3"
 
 GOOGLE_CLIENT_ID = "54971492714-d98cr61k8dpegc35ud7ahs1s2sblvrr8.apps.googleusercontent.com"
 
@@ -161,12 +174,17 @@ def save_preview_artifact(image_array: np.ndarray, output_name: str, suffix: str
 
 def build_process_response(final_states: list[DrawingState], output_name: str, message: str) -> ProcessResponse:
     """Build a stable API response with saved artifacts and reliable preview URLs for multiple pages."""
+    from utils.rendering import DrawingRenderer
     page_results = []
     
     for idx, state in enumerate(final_states):
         page_num = idx + 1
         original_image = normalize_image_for_output(state.original_image)
-        processed_image = normalize_image_for_output(state.healed_geometry, fallback=original_image)
+        
+        # Draw text labels on top of healed geometry for a complete preview
+        healed_raw = state.healed_geometry if state.healed_geometry is not None else state.original_image
+        processed_with_text = DrawingRenderer.draw_labels(healed_raw, state.new_coordinates)
+        processed_image = normalize_image_for_output(processed_with_text, fallback=original_image)
 
         if original_image is None or processed_image is None:
             logger.warning(f"Page {page_num} artifacts are unavailable")
@@ -404,13 +422,64 @@ async def process_base64_image(request: ProcessRequest):
         logger.error(f"Base64 processing error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/api/chat/ocr")
+async def perform_ocr(request: OCRRequest):
+    """Perform OCR on a base64 image"""
+    try:
+        # Decode base64
+        header, encoded = request.image_base64.split(",", 1) if "," in request.image_base64 else (None, request.image_base64)
+        img_data = base64.b64decode(encoded)
+        nparr = np.frombuffer(img_data, np.uint8)
+        image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+        if image is None:
+            raise HTTPException(status_code=400, detail="Invalid image data")
+
+        results = ocr_agent.extract_text(image)
+        return results
+    except Exception as e:
+        logger.error(f"OCR error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/chat/query")
+async def chat_query(request: ChatRequest):
+    """Query the LLM with document context"""
+    try:
+        llm = Ollama(
+            model=request.model,
+            callback_manager=CallbackManager([StreamingStdOutCallbackHandler()])
+        )
+        
+        prompt = f"""
+        You are an AI engineering assistant for the DraftClear platform. 
+        Below is the text extracted from an engineering drawing via OCR. 
+        Use this context to answer the user's question precisely.
+
+        [DOC CONTEXT START]
+        {request.context}
+        [DOC CONTEXT END]
+
+        User Question: {request.message}
+        
+        Answer professionally and concisely based on the document text.
+        """
+        
+        response = llm.invoke(prompt)
+        return {"response": response}
+    except Exception as e:
+        logger.error(f"Chat error: {e}")
+        # Check if Ollama is running
+        if "connection" in str(e).lower() or "refused" in str(e).lower():
+            raise HTTPException(status_code=503, detail="Ollama service not detected. Please ensure Ollama is running.")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 # Serve static frontend files
 frontend_path = Path(__file__).parent / "frontend"
 
 @app.get("/")
 async def read_index():
-    return FileResponse(frontend_path / "index.html")
+    return FileResponse(frontend_path / "login.html")
 
 if frontend_path.exists():
     app.mount("/", StaticFiles(directory=str(frontend_path), html=True), name="static")

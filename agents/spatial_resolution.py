@@ -112,6 +112,8 @@ class SpatialResolutionAgent:
                     h=text_box.h,
                     confidence=text_box.confidence,
                     text=text_box.text,
+                    original_x=text_box.x,
+                    original_y=text_box.y,
                     rotated=text_box.rotated,
                     angle=text_box.angle
                 )

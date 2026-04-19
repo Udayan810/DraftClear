@@ -132,6 +132,8 @@ p {
     overflow: hidden;
 }
 
+
+
 .hero::after {
     content: '';
     position: absolute;
@@ -153,13 +155,14 @@ p {
     font-size: 3rem;
     margin-bottom: 1rem;
     font-weight: 700;
+    color: #FFFFFF !important;
 }
 
 .hero-subtitle {
     font-size: 1.25rem;
     margin-bottom: 2rem;
     opacity: 0.9;
-    color: rgba(255, 255, 255, 0.9);
+    color: #FFFFFF !important;
 }
 
 .hero-stats {

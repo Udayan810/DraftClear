@@ -3,6 +3,7 @@ langgraph
 langchain
 langchain-community
 python-dotenv
+easyocr
 
 # Deep Learning & Vision
 torch

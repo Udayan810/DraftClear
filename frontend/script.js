@@ -22,6 +22,7 @@ const downloadPdfButton = document.getElementById('downloadPdf');
 const downloadComparisonButton = document.getElementById('downloadComparison');
 const logoutButton = document.getElementById('logoutButton');
 
+
 // Event Listeners
 uploadArea.addEventListener('dragover', handleDragOver);
 uploadArea.addEventListener('drop', handleDrop);
@@ -440,6 +441,10 @@ function resetUI() {
 
 // Health check on load
 document.addEventListener('DOMContentLoaded', () => {
+    if (!localStorage.getItem('dc_token')) {
+        window.location.href = 'login.html';
+        return;
+    }
     setDownloadTarget(downloadPdfButton, '', '');
     setDownloadTarget(downloadComparisonButton, '', '');
     checkApiHealth();
@@ -449,12 +454,14 @@ async function checkApiHealth() {
     try {
         const response = await fetch(`${API_BASE_URL}/health`);
         if (response.ok) {
-            console.log('API server is healthy');
+            console.log('API is healthy');
         }
     } catch (error) {
-        console.warn('API server not available:', error);
+        console.error('API health check failed:', error);
     }
 }
+
+
 
 
 // Smooth scrolling for navigation links

@@ -11,6 +11,8 @@ class TextBox:
     h: float  # height
     confidence: float = 0.0
     text: str = ""
+    original_x: Optional[float] = None
+    original_y: Optional[float] = None
     rotated: bool = False
     angle: int = 0
 
@@ -47,11 +49,11 @@ class DrawingState:
         return DrawingState(
             iteration=self.iteration + 1,
             original_image=self.original_image.copy() if self.original_image is not None else None,
-            text_boxes=[TextBox(tb.x, tb.y, tb.w, tb.h, tb.confidence, tb.text, tb.rotated, tb.angle) for tb in self.text_boxes],
+            text_boxes=[TextBox(tb.x, tb.y, tb.w, tb.h, tb.confidence, tb.text, tb.original_x, tb.original_y, tb.rotated, tb.angle) for tb in self.text_boxes],
             detected_geometry=self.detected_geometry.copy() if self.detected_geometry is not None else None,
             mask_matrix=self.mask_matrix.copy() if self.mask_matrix is not None else None,
             damaged_geometry=self.damaged_geometry.copy() if self.damaged_geometry is not None else None,
-            new_coordinates=[TextBox(nc.x, nc.y, nc.w, nc.h, nc.confidence, nc.text, nc.rotated, nc.angle) for nc in self.new_coordinates],
+            new_coordinates=[TextBox(nc.x, nc.y, nc.w, nc.h, nc.confidence, nc.text, nc.original_x, nc.original_y, nc.rotated, nc.angle) for nc in self.new_coordinates],
             healed_geometry=self.healed_geometry.copy() if self.healed_geometry is not None else None,
             collision_count=self.collision_count,
             collision_details=self.collision_details.copy(),

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DraftClear - Chat with File</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+    <link rel="stylesheet" href="styles.css?v=8">
+    <link rel="stylesheet" href="chat.css?v=8">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="chat-page">
+    <nav class="navbar">
+        <div class="container" style="display: flex; justify-content: space-between; align-items: center; max-width: 1600px; margin: 0 auto; padding: 0 20px;">
+            <div class="navbar-brand" style="display: flex; align-items: center; gap: 10px; color: #00338D; font-weight: 800; font-size: 1.4rem;">
+                <i class="fas fa-cube"></i>
+                <span>DraftClear</span>
+            </div>
+            <a href="index.html" class="btn-text">
+                <i class="fas fa-arrow-left"></i> Back to Dashboard
+            </a>
+        </div>
+    </nav>
+
+    <!-- Main Chat Section -->
+    <section class="chat-section">
+        <div class="chat-container">
+            <!-- Left Pane: Document -->
+            <div class="chat-pane chat-pane-left">
+                <div class="pane-header">
+                    <h3>Document Preview</h3>
+                </div>
+                <div class="document-viewer">
+                    <img id="chatDocPreview" src="" alt="Document Preview">
+                </div>
+            </div>
+            
+            <!-- Right Pane: AI Assistant -->
+            <div class="chat-pane chat-pane-right">
+                <!-- OCR Collapsible Section -->
+                <div class="ocr-data-section">
+                    <div class="pane-header">
+                        <h3><i class="fas fa-file-alt"></i> OCR Content</h3>
+                        <button class="btn-icon" id="toggleOcr">
+                            <i class="fas fa-chevron-up"></i>
+                        </button>
+                    </div>
+                    <div class="ocr-content">
+                        <pre id="ocrDataDisplay">Extracting text...</pre>
+                    </div>
+                </div>
+                
+                <!-- Chat Messaging -->
+                <div class="chatbot-section">
+                    <div id="chatMessages" class="chat-messages">
+                        <div class="message bot-message">
+                            Hello! I am analyzing your document with Llama 3. One moment...
+                        </div>
+                    </div>
+                    <div class="chat-input-area">
+                        <textarea id="chatInput" placeholder="Ask a question about this file..." rows="1"></textarea>
+                        <button id="sendChatBtn" class="btn-icon btn-primary">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <script src="chat.js?v=8"></script>
+</body>
+</html>
